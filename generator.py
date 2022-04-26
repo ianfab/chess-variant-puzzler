@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--variant', default='chess')
     parser.add_argument('-c', '--count', type=int, default=10)
     parser.add_argument('-s', '--skill-level', type=int, default=15)
-    parser.add_argument('-e', '--evalfile', default='')
+    parser.add_argument('-ev', '--evalfile', default='')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine])
