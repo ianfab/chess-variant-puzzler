@@ -40,7 +40,9 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--count', type=int, default=10)
     parser.add_argument('-s', '--skill-level', type=int, default=15)
     parser.add_argument('-ev', '--evalfile', default='')
+    parser.add_argument('-o', '--ucioptions', type=lambda kv: kv.split("="), action='append', default=[])
     args = parser.parse_args()
 
-    engine = uci.Engine([args.engine])
+    engine = uci.Engine([args.engine], dict(args.ucioptions))
+    sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     write_fens(sys.stdout, engine, args.variant, args.count, args.skill_level, args.evalfile)
