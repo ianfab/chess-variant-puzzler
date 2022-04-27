@@ -19,7 +19,7 @@ def has_cp(info_line, score=0):
     return info_line['score'][0] == 'cp' and int(info_line['score'][1]) > score
 
 
-def get_puzzle(variant, fen, moves, engine, depth):
+def get_puzzle(variant, fen, moves, engine, depth, evalfile):
     if len(sf.legal_moves(variant, fen, moves)) <= 2:
         return None, None
 
