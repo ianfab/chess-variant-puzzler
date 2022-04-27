@@ -27,8 +27,8 @@ def generate_fens(engine, variant, skill_level, evalfile):
             yield sf.get_fen(variant, fen, move_stack)
 
 
-def write_fens(stream, engine, variant, count, skill_level):
-    generator = generate_fens(engine, variant, skill_level)
+def write_fens(stream, engine, variant, count, skill_level, evalfile):
+    generator = generate_fens(engine, variant, skill_level, evalfile)
     for _ in range(count):
         stream.write(next(generator) + os.linesep)
 
