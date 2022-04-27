@@ -19,7 +19,7 @@ def has_cp(info_line, score=0):
     return info_line['score'][0] == 'cp' and int(info_line['score'][1]) > score
 
 
-def get_puzzle(variant, fen, moves, engine, depth, evalfile):
+def get_puzzle(variant, fen, moves, engine, depth):
     if len(sf.legal_moves(variant, fen, moves)) <= 2:
         return None, None
 
@@ -73,7 +73,7 @@ def generate_puzzles(instream, outstream, engine, variant, multipv, depth, min_s
         scores = []
         types = []
         while True:
-            puzzle_type, info = get_puzzle(variant, fen, pv, engine, depth, evalfile)
+            puzzle_type, info = get_puzzle(variant, fen, pv, engine, depth)
             if not puzzle_type:
                 # trim last opponent move
                 if pv:
