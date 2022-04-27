@@ -99,8 +99,10 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--depth', type=int, default=10)
     parser.add_argument('-s', '--min-score', type=int, default=2)
     parser.add_argument('-ev', '--evalfile', type=str, default='')
+    parser.add_argument('-o', '--ucioptions', type=lambda kv: kv.split("="), action='append', default=[])
     args = parser.parse_args()
 
-    engine = uci.Engine([args.engine])
+    engine = uci.Engine([args.engine], dict(args.ucioptions))
+    sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with open(args.input_file) as fens:
         generate_puzzles(fens, sys.stdout, engine, args.variant, args.multipv, args.depth, args.min_score, args.evalfile)
