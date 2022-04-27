@@ -8,7 +8,7 @@ import pyffish as sf
 import uci
 
 
-def generate_fens(engine, variant, skill_level):
+def generate_fens(engine, variant, skill_level, evalfile):
     if not variant in sf.variants():
         raise Exception("Unsupported variant: {}".format(variant))
 
@@ -16,6 +16,7 @@ def generate_fens(engine, variant, skill_level):
 
     engine.setoption('Skill Level', skill_level)
     engine.setoption('UCI_Variant', variant)
+    engine.setoption('EvalFile', evalfile)
     while True:
         engine.newgame()
         move_stack = []
@@ -38,7 +39,8 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--variant', default='chess')
     parser.add_argument('-c', '--count', type=int, default=10)
     parser.add_argument('-s', '--skill-level', type=int, default=15)
+    parser.add_argument('-ev', '--evalfile', default='')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine])
-    write_fens(sys.stdout, engine, args.variant, args.count, args.skill_level)
+    write_fens(sys.stdout, engine, args.variant, args.count, args.skill_level, args.evalfile)
