@@ -8,41 +8,51 @@ import pyffish as sf
 import uci
 
 
-def generate_fens(engine, variant, skill_level, evalfile):
+def generate_fens(engine, variant, min_depth, max_depth, bare_fen):
     if not variant in sf.variants():
         raise Exception("Unsupported variant: {}".format(variant))
 
-    fen = sf.start_fen(variant)
+    start_fen = sf.start_fen(variant)
 
-    engine.setoption('Skill Level', skill_level)
     engine.setoption('UCI_Variant', variant)
-    engine.setoption('EvalFile', evalfile)
+
+    fens = set()
     while True:
         engine.newgame()
         move_stack = []
-        while sf.legal_moves(variant, fen, move_stack) and not sf.is_optional_game_end(variant, fen, move_stack)[0]:
-            engine.position(fen, move_stack)
-            bestmove, _ = engine.go(depth=random.randint(1, 6))
+        while sf.legal_moves(variant, start_fen, move_stack) and not sf.is_optional_game_end(variant, start_fen, move_stack)[0]:
+            engine.position(start_fen, move_stack)
+            bestmove, _ = engine.go(depth=random.randint(min_depth, max_depth))
             move_stack.append(bestmove)
-            yield sf.get_fen(variant, fen, move_stack)
+            if bare_fen:
+                fen = sf.get_fen(variant, start_fen, move_stack)
+                bestmove = None
+            else:
+                fen = sf.get_fen(variant, start_fen, move_stack[:-1])
+            if (fen, bestmove) not in fens:
+                fens.add((fen, bestmove))
+                yield fen, bestmove
 
 
-def write_fens(stream, engine, variant, count, skill_level, evalfile):
-    generator = generate_fens(engine, variant, skill_level, evalfile)
+def write_fens(stream, engine, variant, count, min_depth, max_depth, bare_fen):
+    generator = generate_fens(engine, variant, min_depth, max_depth, bare_fen)
     for _ in range(count):
-        stream.write(next(generator) + os.linesep)
+        fen, move = next(generator)
+        stream.write('{};variant {}'.format(fen, variant) + (';sm {}'.format(move) if move else '') + os.linesep)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('engine')
+    parser.add_argument('-e', '--engine', required=True)
     parser.add_argument('-v', '--variant', default='chess')
-    parser.add_argument('-c', '--count', type=int, default=10)
-    parser.add_argument('-s', '--skill-level', type=int, default=15)
-    parser.add_argument('-ev', '--evalfile', default='')
+    parser.add_argument('-c', '--count', type=int, default=100)
+    parser.add_argument('-s', '--skill-level', type=int, default=12)
+    parser.add_argument('-d', '--max-depth', type=int, default=6)
+    parser.add_argument('-m', '--min-depth', type=int, default=1)
     parser.add_argument('-o', '--ucioptions', type=lambda kv: kv.split("="), action='append', default=[])
+    parser.add_argument('-b', '--bare-fen', action='store_true', help='remove initial opponent move')
     args = parser.parse_args()
 
-    engine = uci.Engine([args.engine], dict(args.ucioptions))
+    engine = uci.Engine([args.engine], dict(args.ucioptions).update({'Skill Level': args.skill_level}))
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
-    write_fens(sys.stdout, engine, args.variant, args.count, args.skill_level, args.evalfile)
+    write_fens(sys.stdout, engine, args.variant, args.count, args.min_depth, args.max_depth, args.bare_fen)

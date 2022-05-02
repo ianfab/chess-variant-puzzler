@@ -14,11 +14,12 @@ PGN_HEADER = """
 """
 
 
-def epd_to_pgn(epd_stream, pgn_stream, variant):
+def epd_to_pgn(epd_stream, pgn_stream):
     for epd in epd_stream:
         tokens = epd.strip().split(';')
         fen = tokens[0]
         annotations = dict(token.split(' ', 1) for token in tokens[1:])
+        variant = annotations['variant']
         pgn_stream.write(PGN_HEADER.format(annotations.get('type'), variant.capitalize(), fen))
         moves = annotations.get('pv', '').split(',')
         san_moves = sf.get_san_moves(variant, fen, moves)
@@ -34,7 +35,6 @@ def epd_to_pgn(epd_stream, pgn_stream, variant):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('epd_file')
-    parser.add_argument('-v', '--variant', default='chess')
     args = parser.parse_args()
     with open(args.epd_file) as instream:
-        epd_to_pgn(instream, sys.stdout, args.variant)
+        epd_to_pgn(instream, sys.stdout)
