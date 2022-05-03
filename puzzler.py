@@ -1,4 +1,5 @@
 import argparse
+import fileinput
 import sys
 
 import pyffish as sf
@@ -105,13 +106,13 @@ def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, d
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('input_file')
+    parser.add_argument('epd_files', nargs='*')
     parser.add_argument('-e', '--engine', required=True)
     parser.add_argument('-v', '--variant', help='only required if not annotated in input FEN/EPD')
     parser.add_argument('-o', '--ucioptions', type=lambda kv: kv.split("="), action='append', default=[])
     parser.add_argument('-t', '--types', type=str, action='append', default=[], help='mate/winning/defensive')
     parser.add_argument('-m', '--multipv', type=int, default=2)
-    parser.add_argument('-d', '--depth', type=int, default=10)
+    parser.add_argument('-d', '--depth', type=int, default=8)
     parser.add_argument('-n', '--min-difficulty', type=int, default=2)
     parser.add_argument('-x', '--max-difficulty', type=int, default=1000)
     parser.add_argument('-w', '--win-threshold', type=int, default=500)
@@ -120,6 +121,6 @@ if __name__ == '__main__':
 
     engine = uci.Engine([args.engine], dict(args.ucioptions))
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
-    with open(args.input_file) as fens:
-        generate_puzzles(fens, sys.stdout, engine, args.variant, args.types, args.multipv, args.depth,
+    with fileinput.input(args.epd_files) as instream:
+        generate_puzzles(instream, sys.stdout, engine, args.variant, args.types, args.multipv, args.depth,
                          args.min_difficulty, args.max_difficulty, args.win_threshold, args.unclear_threshold)

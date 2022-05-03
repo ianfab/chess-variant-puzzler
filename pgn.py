@@ -1,4 +1,5 @@
 import argparse
+import fileinput
 import os
 import sys
 
@@ -34,7 +35,7 @@ def epd_to_pgn(epd_stream, pgn_stream):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('epd_file')
+    parser.add_argument('epd_files', nargs='*')
     args = parser.parse_args()
-    with open(args.epd_file) as instream:
+    with fileinput.input(args.epd_files) as instream:
         epd_to_pgn(instream, sys.stdout)
