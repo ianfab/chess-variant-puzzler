@@ -47,7 +47,7 @@ class Engine():
                 continue
             elif items[0] == 'bestmove':
                 bestmove = items[1]
-            elif items[0] == 'info' and len(items) > 1 and items[1] != 'string':
+            elif items[0] == 'info' and len(items) > 1 and items[1] != 'string' and 'score' in items:
                 key = None
                 values = []
                 info = {}

@@ -12,7 +12,7 @@ def move(info_line):
 
 
 def format_eval(info_line):
-    return '#' if info_line['score'][0] == 'mate' else '' + info_line['score'][1]
+    return ('#' if info_line['score'][0] == 'mate' else '') + info_line['score'][1]
 
 
 def is_mate(info_line, distance=0):
@@ -21,6 +21,28 @@ def is_mate(info_line, distance=0):
 
 def has_cp(info_line, score=0):
     return info_line['score'][0] == 'cp' and int(info_line['score'][1]) > score
+
+
+def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold):
+    candidate = multipv_info[0]
+    first_alt = multipv_info[1]
+
+    # mate
+    if is_mate(candidate):
+        if not is_mate(first_alt) and not has_cp(first_alt, win_threshold):
+            return 'mate'
+
+    # big tactics
+    if has_cp(candidate, win_threshold):
+        if not has_cp(first_alt, unclear_threshold):
+            return 'winning'
+
+    # big defensive tactics
+    if has_cp(candidate, -unclear_threshold):
+        if not has_cp(first_alt, -win_threshold):
+            return 'defensive'
+
+    return None
 
 
 def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_threshold):
@@ -32,43 +54,35 @@ def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_thresh
     engine.position(fen, moves)
     _, info = engine.go(depth=depth)
 
-    last_depth = info[-1]
-    candidate = last_depth[0]
-    first_alt = last_depth[1]
-
-    # mate
-    if is_mate(candidate):
-        if not is_mate(first_alt) and not has_cp(first_alt, win_threshold):
-            return 'mate', info
-
-    # big tactics
-    if has_cp(candidate, win_threshold):
-        if not has_cp(first_alt, unclear_threshold):
-            return 'winning', info
-
-    # big defensive tactics
-    if has_cp(candidate, -unclear_threshold):
-        if not has_cp(first_alt, -win_threshold):
-            return 'defensive', info
-
-    return None, None
+    theme = get_puzzle_theme(info[-1], win_threshold, unclear_threshold)
+    return theme, info
 
 
-def rate_puzzle(info):
+def rate_puzzle(info, win_threshold, unclear_threshold):
     bestmove = move(info[-1][0])
     min_depth = None
     stable_depth = None
+    solve_depth = None
+    difficulty = 0
     for d, multiinf in enumerate(info):
         if move(multiinf[0]) != bestmove:
             stable_depth = d + 1
-        elif not min_depth:
-            min_depth = d
-            stable_depth = d
+            solve_depth = d + 1
+            difficulty += 1
+        else:
+            if not min_depth:
+                min_depth = d
+                stable_depth = d
+                solve_depth = d
+            if not get_puzzle_theme(multiinf, win_threshold, unclear_threshold):
+                solve_depth = d + 1
 
-    return (min_depth + stable_depth) / 2
+    # quality is low if the puzzle criteria are only fulfilled
+    # much later than finding the stable best move
+    return difficulty, 1 - (solve_depth - stable_depth) / len(info)
 
 
-def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, depth, min_difficulty, max_difficulty, win_threshold, unclear_threshold):
+def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, depth, min_difficulty, max_difficulty, min_quality, win_threshold, unclear_threshold):
     engine.setoption('multipv', multipv)
     for epd in instream:
         tokens = epd.strip().split(';')
@@ -83,6 +97,7 @@ def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, d
         stm_index = len(pv)
         evals = []
         difficulties = []
+        qualities = []
         types = []
         while True:
             puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold)
@@ -92,16 +107,20 @@ def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, d
                     pv.pop()
                 break
             evals.append(format_eval(info[-1][0]))
-            difficulties.append(rate_puzzle(info))
+            difficulty, quality = rate_puzzle(info, win_threshold, unclear_threshold)
+            difficulties.append(difficulty)
+            qualities.append(quality)
             types.append(puzzle_type)
             pv += info[-1][0]['pv'][:2]
             if len(info[-1][0]['pv']) < 2:
                 break
 
         total_difficulty = sum(difficulties)
-        if pv and (not req_types or types[0] in req_types) and (max_difficulty >= total_difficulty >= min_difficulty):
+        total_quality = sum(qualities) / len(qualities) if qualities else 0
+        if pv and (not req_types or types[0] in req_types) and (max_difficulty >= total_difficulty >= min_difficulty) and (total_quality >= min_quality):
             sm = 'sm {};'.format(pv[0]) if stm_index == 1 else ''
-            outstream.write('{};variant {};{}bm {};eval {};difficulty {};type {};pv {}\n'.format(fen, current_variant, sm, pv[stm_index], evals[0], total_difficulty, types[0], ','.join(pv)))
+            outstream.write('{};variant {};{}bm {};eval {};difficulty {};quality {:.2f};type {};pv {}\n'.format(
+                fen, current_variant, sm, pv[stm_index], evals[0], total_difficulty, total_quality, types[0], ','.join(pv)))
 
 
 if __name__ == '__main__':
@@ -113,8 +132,9 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--types', type=str, action='append', default=[], help='mate/winning/defensive')
     parser.add_argument('-m', '--multipv', type=int, default=2)
     parser.add_argument('-d', '--depth', type=int, default=8)
-    parser.add_argument('-n', '--min-difficulty', type=int, default=2)
+    parser.add_argument('-n', '--min-difficulty', type=int, default=1)
     parser.add_argument('-x', '--max-difficulty', type=int, default=1000)
+    parser.add_argument('-q', '--min-quality', type=int, default=0.7)
     parser.add_argument('-w', '--win-threshold', type=int, default=500)
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100)
     args = parser.parse_args()
@@ -123,4 +143,4 @@ if __name__ == '__main__':
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with fileinput.input(args.epd_files) as instream:
         generate_puzzles(instream, sys.stdout, engine, args.variant, args.types, args.multipv, args.depth,
-                         args.min_difficulty, args.max_difficulty, args.win_threshold, args.unclear_threshold)
+                         args.min_difficulty, args.max_difficulty, args.min_quality, args.win_threshold, args.unclear_threshold)
