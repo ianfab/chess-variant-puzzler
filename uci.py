@@ -39,7 +39,8 @@ class Engine():
         self.write('go {}\n'.format(' '.join(str(item) for key_value in limits.items() for item in key_value)))
         bestmove = None
         infos = defaultdict(dict)
-        KEYWORDS = {'depth': int, 'seldepth': int, 'multipv': int, 'nodes': int, 'nps': int, 'time': int, 'score': list, 'pv': list}
+        KEYWORDS = {'depth': int, 'seldepth': int, 'multipv': int, 'nodes': int,
+                    'nps': int, 'time': int, 'score': list, 'pv': list}
 
         for line in self.read('bestmove'):
             items = line.split()

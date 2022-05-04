@@ -9,7 +9,7 @@ import uci
 
 
 def generate_fens(engine, variant, min_depth, max_depth, add_move):
-    if not variant in sf.variants():
+    if variant not in sf.variants():
         raise Exception("Unsupported variant: {}".format(variant))
 
     start_fen = sf.start_fen(variant)
@@ -20,7 +20,8 @@ def generate_fens(engine, variant, min_depth, max_depth, add_move):
     while True:
         engine.newgame()
         move_stack = []
-        while sf.legal_moves(variant, start_fen, move_stack) and not sf.is_optional_game_end(variant, start_fen, move_stack)[0]:
+        while (sf.legal_moves(variant, start_fen, move_stack)
+               and not sf.is_optional_game_end(variant, start_fen, move_stack)[0]):
             engine.position(start_fen, move_stack)
             bestmove, _ = engine.go(depth=random.randint(min_depth, max_depth))
             move_stack.append(bestmove)
