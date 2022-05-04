@@ -82,7 +82,8 @@ def rate_puzzle(info, win_threshold, unclear_threshold):
     return difficulty, 1 - (solve_depth - stable_depth) / len(info)
 
 
-def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, depth, min_difficulty, max_difficulty, min_quality, win_threshold, unclear_threshold):
+def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, depth,
+                     min_difficulty, max_difficulty, min_quality, win_threshold, unclear_threshold):
     engine.setoption('multipv', multipv)
     for epd in instream:
         tokens = epd.strip().split(';')
@@ -117,7 +118,9 @@ def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, d
 
         total_difficulty = difficulties[0] if difficulties else 0
         total_quality = sum(qualities) / len(qualities) if qualities else 0
-        if len(pv) > stm_index and (not req_types or types[0] in req_types) and (max_difficulty >= total_difficulty >= min_difficulty) and (total_quality >= min_quality):
+        if (len(pv) > stm_index
+                and (not req_types or types[0] in req_types)
+                and (max_difficulty >= total_difficulty >= min_difficulty) and (total_quality >= min_quality)):
             sm = 'sm {};'.format(pv[0]) if stm_index == 1 else ''
             outstream.write('{};variant {};{}bm {};eval {};difficulty {};quality {:.2f};type {};pv {}\n'.format(
                 fen, current_variant, sm, pv[stm_index], evals[0], total_difficulty, total_quality, types[0], ','.join(pv)))
@@ -143,4 +146,5 @@ if __name__ == '__main__':
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with fileinput.input(args.epd_files) as instream:
         generate_puzzles(instream, sys.stdout, engine, args.variant, args.types, args.multipv, args.depth,
-                         args.min_difficulty, args.max_difficulty, args.min_quality, args.win_threshold, args.unclear_threshold)
+                         args.min_difficulty, args.max_difficulty, args.min_quality,
+                         args.win_threshold, args.unclear_threshold)
