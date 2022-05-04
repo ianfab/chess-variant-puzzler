@@ -28,3 +28,8 @@ Instead of input from files the scripts can also take input from stdin, so two o
 ```
 python3 generator.py -e fairy-stockfish -v crazyhouse | python3 puzzler.py -e fairy-stockfish | python3 pgn.py
 ```
+
+Usually it makes sense to to first run the puzzler with a lower depth but loose filter criteria to pre-filter the positions, followed by a more strict validation at higher depth, e.g.:
+```
+python generator.py -e engine/fairy-stockfish -v crazyhouse -c 1000 | python puzzler.py -e engine/fairy-stockfish -d 8 -q 0 | python puzzler.py -e engine/fairy-stockfish -d 12 -q 0.5
+```

@@ -61,25 +61,20 @@ def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_thresh
 def rate_puzzle(info, win_threshold, unclear_threshold):
     bestmove = move(info[-1][0])
     min_depth = None
-    stable_depth = None
-    solve_depth = None
     difficulty = 0
-    for d, multiinf in enumerate(info):
+    instability = 0
+    for multiinf in info:
         if move(multiinf[0]) != bestmove:
-            stable_depth = d + 1
-            solve_depth = d + 1
             difficulty += 1
         else:
-            if not min_depth:
-                min_depth = d
-                stable_depth = d
-                solve_depth = d
+            if min_depth is None:
+                min_depth = multiinf[0]['depth']
             if not get_puzzle_theme(multiinf, win_threshold, unclear_threshold):
-                solve_depth = d + 1
+                instability += 1
 
-    # quality is low if the puzzle criteria are only fulfilled
-    # much later than finding the stable best move
-    return difficulty, 1 - (solve_depth - stable_depth) / len(info)
+    # quality is low if the puzzle criteria are unstable
+    # difficulty is zero when depth 1 was correct
+    return min(difficulty, 5 * (min_depth - 1)), 1 - instability / (len(info) - difficulty)
 
 
 def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, depth,
@@ -130,16 +125,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('epd_files', nargs='*')
     parser.add_argument('-e', '--engine', required=True)
+    parser.add_argument('-o', '--ucioptions', type=lambda kv: kv.split("="), action='append', default=[],
+                        help='UCI option as key=value pair. Repeat to add more options.')
     parser.add_argument('-v', '--variant', help='only required if not annotated in input FEN/EPD')
-    parser.add_argument('-o', '--ucioptions', type=lambda kv: kv.split("="), action='append', default=[])
     parser.add_argument('-t', '--types', type=str, action='append', default=[], help='mate/winning/defensive')
     parser.add_argument('-m', '--multipv', type=int, default=2)
-    parser.add_argument('-d', '--depth', type=int, default=8)
-    parser.add_argument('-n', '--min-difficulty', type=int, default=1)
-    parser.add_argument('-x', '--max-difficulty', type=int, default=1000)
-    parser.add_argument('-q', '--min-quality', type=int, default=0.7)
-    parser.add_argument('-w', '--win-threshold', type=int, default=500)
-    parser.add_argument('-u', '--unclear-threshold', type=int, default=100)
+    parser.add_argument('-d', '--depth', type=int, default=8, help='Engine search depth. Important for puzzle accuracy.')
+    parser.add_argument('-n', '--min-difficulty', type=int, default=1, help='minimum difficulty')
+    parser.add_argument('-x', '--max-difficulty', type=int, default=100, help='maximum difficulty')
+    parser.add_argument('-q', '--min-quality', type=int, default=0.2, help='minimum puzzle quality [0,1]')
+    parser.add_argument('-w', '--win-threshold', type=int, default=500, help='centipawn threshold for winning positions')
+    parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine], dict(args.ucioptions))
