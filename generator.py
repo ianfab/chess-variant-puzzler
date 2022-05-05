@@ -55,6 +55,9 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--add-move', action='store_true', help='add initial move for opposing side')
     args = parser.parse_args()
 
-    engine = uci.Engine([args.engine], dict(args.ucioptions).update({'Skill Level': args.skill_level}))
+    ucioptions = dict(args.ucioptions)
+    ucioptions.update({'Skill Level': args.skill_level})
+
+    engine = uci.Engine([args.engine], ucioptions)
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     write_fens(sys.stdout, engine, args.variant, args.count, args.min_depth, args.max_depth, args.add_move)
