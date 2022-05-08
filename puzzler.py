@@ -133,7 +133,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--depth', type=int, default=8, help='Engine search depth. Important for puzzle accuracy.')
     parser.add_argument('-n', '--min-difficulty', type=int, default=1, help='minimum difficulty')
     parser.add_argument('-x', '--max-difficulty', type=int, default=100, help='maximum difficulty')
-    parser.add_argument('-q', '--min-quality', type=int, default=0.2, help='minimum puzzle quality [0,1]')
+    parser.add_argument('-q', '--min-quality', type=float, default=0.2, help='minimum puzzle quality [0,1]')
     parser.add_argument('-w', '--win-threshold', type=int, default=500, help='centipawn threshold for winning positions')
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
     args = parser.parse_args()
