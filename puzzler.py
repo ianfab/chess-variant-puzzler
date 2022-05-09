@@ -1,6 +1,7 @@
 import argparse
 import fileinput
 from functools import partial
+import math
 import sys
 
 from tqdm import tqdm
@@ -31,23 +32,37 @@ def has_cp(info_line, score=0):
     return info_line['score'][0] == 'cp' and int(info_line['score'][1]) > score
 
 
+def sigmoid(x):
+    if x >= 0:
+        z = math.exp(-x)
+        return 1 / (1 + z)
+    else:
+        z = math.exp(x)
+        return z / (1 + z)
+
+
+def value(info_line, scale):
+    if info_line['score'][0] == 'mate':
+        return 1 if int(info_line['score'][1]) >= 0 else 0
+    elif info_line['score'][0] == 'cp':
+        return sigmoid(float(info_line['score'][1]) / scale)
+
+
 def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold):
+    scale = win_threshold * 0.8
+    min_diff = sigmoid(win_threshold / scale) - sigmoid(unclear_threshold / scale)
+
     candidate = multipv_info[0]
     first_alt = multipv_info[1]
 
-    # mate
-    if is_mate(candidate):
-        if not is_mate(first_alt) and not has_cp(first_alt, win_threshold):
+    if value(candidate, scale) - value(first_alt, scale) >= min_diff:
+        if is_mate(candidate):
             return 'mate'
-
-    # big tactics
-    if has_cp(candidate, win_threshold):
-        if not has_cp(first_alt, unclear_threshold):
+        elif has_cp(candidate, win_threshold):
             return 'winning'
-
-    # big defensive tactics
-    if has_cp(candidate, -unclear_threshold):
-        if not has_cp(first_alt, -win_threshold):
+        elif has_cp(candidate, unclear_threshold):
+            return 'turnaround'
+        else:
             return 'defensive'
 
     return None
