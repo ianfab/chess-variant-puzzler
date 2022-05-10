@@ -119,7 +119,17 @@ def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, d
             sm = 'sm {};'.format(pv[0]) if stm_index == 1 else ''
             operations = f';{";".join("%s %s" % (k, v) for k, v in annotations.items() if k not in ("sm", "variant"))}'
             outstream.write('{};variant {};{}bm {};eval {};difficulty {};quality {:.2f};type {};pv {}{}\n'.format(
-                fen, current_variant, sm, pv[stm_index], evals[0], total_difficulty, total_quality, types[0], ','.join(pv), operations))
+                fen,
+                current_variant,
+                sm,
+                pv[stm_index],
+                evals[0],
+                total_difficulty,
+                total_quality,
+                types[0],
+                ','.join(pv),
+                operations)
+            )
 
 
 if __name__ == '__main__':
