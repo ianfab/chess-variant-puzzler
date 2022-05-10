@@ -8,6 +8,7 @@ import pyffish as sf
 
 PGN_HEADER = """
 [Event "{}"]
+[Site "{}"]
 [Result "*"]
 [Variant "{}"]
 [FEN "{}"]
@@ -25,7 +26,8 @@ def epd_to_pgn(epd_stream, pgn_stream):
         if variant not in sf.variants():
             raise Exception("Unsupported variant: {}".format(variant))
 
-        pgn_stream.write(PGN_HEADER.format(annotations.get('type'), variant.capitalize(), fen))
+        site = annotations.get('site', 'https://github.com/ianfab/Fairy-Stockfish')
+        pgn_stream.write(PGN_HEADER.format(annotations.get('type'), site, variant.capitalize(), fen))
         moves = annotations.get('pv', '').split(',')
         san_moves = sf.get_san_moves(variant, fen, moves)
         for i, san_move in enumerate(san_moves):
