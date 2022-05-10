@@ -117,7 +117,8 @@ def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, d
                 and (not req_types or types[0] in req_types)
                 and (max_difficulty >= total_difficulty >= min_difficulty) and (total_quality >= min_quality)):
             sm = 'sm {};'.format(pv[0]) if stm_index == 1 else ''
-            operations = f';{";".join("%s %s" % (k, v) for k, v in annotations.items() if k not in ("sm", "variant"))}'
+            ops = ";".join("%s %s" % (k, v) for k, v in annotations.items() if k not in ("sm", "variant"))
+            operations = f';{ops}' if ops else ''
             outstream.write('{};variant {};{}bm {};eval {};difficulty {};quality {:.2f};type {};pv {}{}\n'.format(
                 fen,
                 current_variant,
