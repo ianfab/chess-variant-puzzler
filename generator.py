@@ -3,6 +3,7 @@ import os
 import random
 import sys
 
+from tqdm import tqdm
 import pyffish as sf
 
 import uci
@@ -37,7 +38,7 @@ def generate_fens(engine, variant, min_depth, max_depth, add_move):
 
 def write_fens(stream, engine, variant, count, min_depth, max_depth, add_move):
     generator = generate_fens(engine, variant, min_depth, max_depth, add_move)
-    for _ in range(count):
+    for _ in tqdm(range(count)):
         fen, move = next(generator)
         stream.write('{};variant {}'.format(fen, variant) + (';sm {}'.format(move) if move else '') + os.linesep)
 
