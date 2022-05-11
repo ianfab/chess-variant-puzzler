@@ -1,10 +1,18 @@
 import argparse
 import fileinput
+from functools import partial
 import sys
 
+from tqdm import tqdm
 import pyffish as sf
 
 import uci
+
+
+def line_count(filename):
+    f = open(filename, 'rb')
+    bufgen = iter(partial(f.raw.read, 1024*1024), b'')
+    return sum(buf.count(b'\n') for buf in bufgen)
 
 
 def move(info_line):
@@ -80,7 +88,17 @@ def rate_puzzle(info, win_threshold, unclear_threshold):
 def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, depth,
                      min_difficulty, max_difficulty, min_quality, win_threshold, unclear_threshold):
     engine.setoption('multipv', multipv)
-    for epd in instream:
+
+    # Before the first line has been read, filename() returns None.
+    if instream.filename() is None:
+        filename = instream._files[0]
+    else:
+        filename = instream.filename()
+
+    # When reading from sys.stdin, filename() is "-"
+    total = None if (filename == "-") else line_count(filename)
+
+    for epd in tqdm(instream, total=total):
         tokens = epd.strip().split(';')
         fen = tokens[0]
         annotations = dict(token.split(' ', 1) for token in tokens[1:])
