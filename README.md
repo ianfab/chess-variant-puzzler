@@ -9,6 +9,7 @@ Generating puzzles in PGN format currently consists of running the following scr
 2. `puzzler.py` to identify puzzles within those positions and store them as EPD with annotations. This step can be re-run on the resulting EPD to re-evaluate the puzzles, e.g., at higher depth.
 3. `pgn.py` to convert the EPD to a PGN.
 
+If you download games from pychess in `.json` format, you can also use [`json2epd.py`](https://github.com/gbtami/pychess-variants/blob/master/server/json2epd.py) to generate FENs.
 ## Setup
 The scripts require at least python3.2 as well as the dependencies from the `requirements.txt`. Install them using
 ```
