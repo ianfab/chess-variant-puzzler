@@ -6,8 +6,8 @@ This is a simple puzzle generator for chess variants based on [Fairy-Stockfish](
 
 Generating puzzles in PGN format currently consists of running the following scripts
 1. `generator.py` to generate a set of positions in FEN/EPD format from playing engine games. This step can be skipped if positions are extracted from other sources such as databases of human games.
-* If you download games from lichess in `.pgn` format, you can use [`pgn2epd.py`](https://github.com/gbtami/pychess-variants/blob/master/server/pgn2epd.py) to generate FENs. (Requires [python-chess](https://pypi.org/project/chess/) to be installed as well.)
-* If you download games from pychess in `.json` format, you can use [`json2epd.py`](https://github.com/gbtami/pychess-variants/blob/master/server/json2epd.py) to generate FENs.
+    * If you download games from lichess in `.pgn` format, you can use [`pgn2epd.py`](https://github.com/gbtami/pychess-variants/blob/master/server/pgn2epd.py) to generate FENs. (Requires [python-chess](https://pypi.org/project/chess/) to be installed as well.)
+    * If you download games from pychess in `.json` format, you can use [`json2epd.py`](https://github.com/gbtami/pychess-variants/blob/master/server/json2epd.py) to generate FENs.
 2. `puzzler.py` to identify puzzles within those positions and store them as EPD with annotations. This step can be re-run on the resulting EPD to re-evaluate the puzzles, e.g., at higher depth.
 3. `pgn.py` to convert the EPD to a PGN.
 
