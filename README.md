@@ -35,3 +35,4 @@ Usually it makes sense to to first run the puzzler with a lower depth but loose 
 ```
 python generator.py -e engine/fairy-stockfish -v crazyhouse -c 1000 | python puzzler.py -e engine/fairy-stockfish -d 8 -q 0 | python puzzler.py -e engine/fairy-stockfish -d 12 -q 0.5
 ```
+You can pass in some other arguments in `puzzler.py`, see the code for more details. Note that Difficulty and Quality are defined [here]( https://github.com/ianfab/chess-variant-puzzler/blob/040b9235b47201e1d2f23c29754c3839cb5bb36c/puzzler.py#L84-L100.).
