@@ -20,18 +20,30 @@ pip3 install -r requirements.txt
 ## Usage
 A simple example of running the scripts with default settings is:
 ```
-python3 generator.py -e fairy-stockfish -v crazyhouse > positions.epd
-python3 puzzler.py -e fairy-stockfish positions.epd > puzzles.epd
+# generate positions
+python3 generator.py --engine fairy-stockfish --variant crazyhouse > positions.epd
+# extract puzzles
+python3 puzzler.py --engine fairy-stockfish positions.epd > puzzles.epd
+# convert EPD to PGN
 python3 pgn.py puzzles.epd > puzzles.pgn
 ```
-Run the scripts with `-h` to get help on the supported parameters.
+Run the scripts with `--help` to get help on the supported parameters.
 
-Instead of input from files the scripts can also take input from stdin, so two or more commands can optionally be piped together if the intermediate files are not of interest.
-```
-python3 generator.py -e fairy-stockfish -v crazyhouse | python3 puzzler.py -e fairy-stockfish | python3 pgn.py
-```
+Usually it makes sense to to first run the puzzler with a lower depth but loose filter criteria to pre-filter the positions, followed by a more strict validation at higher depth.
 
-Usually it makes sense to to first run the puzzler with a lower depth but loose filter criteria to pre-filter the positions, followed by a more strict validation at higher depth, e.g.:
+## Evaluate
+The puzzle generator can be evaluated against an existing database of curated puzzles. E.g., for the example of lichess:
 ```
-python generator.py -e engine/fairy-stockfish -v crazyhouse -c 1000 | python puzzler.py -e engine/fairy-stockfish -d 8 -q 0 | python puzzler.py -e engine/fairy-stockfish -d 12 -q 0.5
+# Download puzzles from https://database.lichess.org/#puzzles
+curl -O https://database.lichess.org/lichess_db_puzzle.csv.bz2
+# Unpack
+bzip2 -dk lichess_db_puzzle.csv.bz2
+# Extract subset
+head -100 /mnt/Schach/FENs/lichess_db_puzzle.csv > test.csv
+# Prepare input FENs
+cut -d " " -f 1-6 test.csv | cut -d "," -f 2,3 --output-delimiter=";sm " > test.fen
+# Run puzzler
+python puzzler.py --engine fairy-stockfish -d 10 --variant chess test.fen > test.epd
+# Run evaluation
+python evaluate.py test.csv test.epd
 ```
