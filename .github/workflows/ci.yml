@@ -45,7 +45,7 @@ jobs:
         python generator.py -e ./fairy-stockfish -c 500 > test.fen
     - name: Run puzzler.py
       run: |
-        python puzzler.py -e ./fairy-stockfish -d 6 -n 0 test.fen > test.epd
+        python puzzler.py -e ./fairy-stockfish -d 6 test.fen > test.epd
     - name: Run pgn.py
       run: |
         python pgn.py test.epd
