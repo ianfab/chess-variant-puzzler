@@ -6,6 +6,7 @@ import sys
 
 from tqdm import tqdm
 import pyffish as sf
+import numpy as np
 
 import uci
 
@@ -28,6 +29,11 @@ def is_mate(info_line, distance=0):
     return info_line['score'][0] == 'mate' and int(info_line['score'][1]) > distance
 
 
+def mate_distance(info_line):
+    assert info_line['score'][0] == 'mate'
+    return int(info_line['score'][1])
+
+
 def has_cp(info_line, score=0):
     return info_line['score'][0] == 'cp' and int(info_line['score'][1]) > score
 
@@ -48,6 +54,10 @@ def value(info_line, scale):
         return sigmoid(float(info_line['score'][1]) / scale)
 
 
+def is_shortest_win(candidate, first_alt):
+    return is_mate(candidate) and not (is_mate(first_alt) and mate_distance(first_alt) < mate_distance(candidate) * 2)
+
+
 def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold):
     scale = win_threshold * 0.8
     min_diff = sigmoid(win_threshold / scale) - sigmoid(unclear_threshold / scale)
@@ -55,7 +65,7 @@ def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold):
     candidate = multipv_info[0]
     first_alt = multipv_info[1]
 
-    if value(candidate, scale) - value(first_alt, scale) >= min_diff:
+    if value(candidate, scale) - value(first_alt, scale) >= min_diff or is_shortest_win(candidate, first_alt):
         if is_mate(candidate):
             return 'mate'
         elif has_cp(candidate, win_threshold):
@@ -81,29 +91,34 @@ def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_thresh
     return theme, info
 
 
-def rate_puzzle(info, win_threshold, unclear_threshold):
+def rate_puzzle(info, win_threshold):
     bestmove = move(info[-1][0])
-    min_depth = None
-    difficulty = 0
-    instability = 0
+    bestscore = value(info[-1][0], win_threshold)
+    bestscore2 = value(info[-1][1], win_threshold)
+    quality = 0
+    last_score = None
+    last_second_score = None
+    volatility = 0
+    volatility2 = 0
+    accuracy = 0
+    accuracy2 = 0
     for multiinf in info:
-        if move(multiinf[0]) != bestmove:
-            difficulty += 1
-        else:
-            if min_depth is None:
-                min_depth = multiinf[0]['depth']
-            if not get_puzzle_theme(multiinf, win_threshold, unclear_threshold):
-                instability += 1
+        v0 = value(multiinf[0], win_threshold)
+        v1 = value(multiinf[1], win_threshold)
+        if move(multiinf[0]) == bestmove:
+            quality += abs(v0 - v1)
+        accuracy += abs(v0 - bestscore)
+        accuracy2 += abs(v1 - bestscore2)
+        if last_score is not None:
+            volatility += abs(v0 - last_score)
+            volatility2 += abs(v1 - last_second_score)
+        last_score = v0
+        last_second_score = v1
 
-    # quality is low if the puzzle criteria are unstable
-    # difficulty is zero when depth 1 was correct
-    return min(difficulty, 5 * (min_depth - 1)), 1 - instability / (len(info) - difficulty)
+    return volatility / len(info), volatility2 / len(info),  accuracy / len(info),  accuracy2 / len(info), quality / len(info)
 
 
-def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, depth,
-                     min_difficulty, max_difficulty, min_quality, win_threshold, unclear_threshold):
-    engine.setoption('multipv', multipv)
-
+def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold):
     # Before the first line has been read, filename() returns None.
     if instream.filename() is None:
         filename = instream._files[0]
@@ -125,8 +140,11 @@ def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, d
             pv.append(annotations['sm'])
         stm_index = len(pv)
         evals = []
-        difficulties = []
         qualities = []
+        volatilities = []
+        volatilities2 = []
+        accuracies = []
+        accuracies2 = []
         types = []
         while True:
             puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold)
@@ -135,36 +153,41 @@ def generate_puzzles(instream, outstream, engine, variant, req_types, multipv, d
                 if pv:
                     pv.pop()
                 break
-            evals.append(format_eval(info[-1][0]))
-            difficulty, quality = rate_puzzle(info, win_threshold, unclear_threshold)
-            difficulties.append(difficulty)
+            evals.append(info[-1][0])
+            volatility, volatility2, accuracy, accuracy2, quality = rate_puzzle(info, win_threshold)
             qualities.append(quality)
+            volatilities.append(volatility)
+            volatilities2.append(volatility2)
+            accuracies.append(accuracy)
+            accuracies2.append(accuracy2)
             types.append(puzzle_type)
             pv += info[-1][0]['pv'][:2]
             if len(info[-1][0]['pv']) < 2:
                 break
 
-        total_difficulty = difficulties[0] if difficulties else 0
-        total_quality = sum(qualities) / len(qualities) if qualities else 0
-        if (len(pv) > stm_index
-                and (not req_types or types[0] in req_types)
-                and (max_difficulty >= total_difficulty >= min_difficulty) and (total_quality >= min_quality)):
-            sm = 'sm {};'.format(pv[0]) if stm_index == 1 else ''
-            created_ops = ("variant", "sm", "bm", "eval", "difficulty", "quality", "type", "pv")
-            ops = ";".join("%s %s" % (k, v) for k, v in annotations.items() if k not in created_ops)
-            operations = f';{ops}' if ops else ''
-            outstream.write('{};variant {};{}bm {};eval {};difficulty {};quality {:.2f};type {};pv {}{}\n'.format(
-                fen,
-                current_variant,
-                sm,
-                pv[stm_index],
-                evals[0],
-                total_difficulty,
-                total_quality,
-                types[0],
-                ','.join(pv),
-                operations)
-            )
+        if len(pv) > stm_index:
+            std = np.std([value(e, win_threshold) for e in evals])
+            difficulty = 4 * volatilities[0] + 2 * std + accuracies[0]
+            content = len(pv) - stm_index - 40 * volatilities2[0]
+            total_quality = sum(qualities) / len(qualities)
+            # output
+            annotations['variant'] = current_variant
+            if stm_index == 1:
+                annotations['sm'] = pv[0]
+            annotations['bm'] = pv[stm_index]
+            annotations['eval'] = format_eval(evals[0])
+            annotations['difficulty'] = '{:.3f}'.format(difficulty)
+            annotations['content'] = '{:.3f}'.format(content)
+            annotations['quality'] = '{:.3f}'.format(total_quality)
+            annotations['volatility'] = '{:.3f}'.format(volatilities[0])
+            annotations['volatility2'] = '{:.3f}'.format(volatilities2[0])
+            annotations['accuracy'] = '{:.3f}'.format(accuracies[0])
+            annotations['accuracy2'] = '{:.3f}'.format(accuracies2[0])
+            annotations['std'] = '{:.3f}'.format(std)
+            annotations['type'] = types[0]
+            annotations['pv'] = ','.join(pv)
+            ops = ';'.join('{} {}'.format(k, v) for k, v in annotations.items())
+            outstream.write('{};{}\n'.format(fen, ops))
 
 
 if __name__ == '__main__':
@@ -174,19 +197,14 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--ucioptions', type=lambda kv: kv.split("="), action='append', default=[],
                         help='UCI option as key=value pair. Repeat to add more options.')
     parser.add_argument('-v', '--variant', help='only required if not annotated in input FEN/EPD')
-    parser.add_argument('-t', '--types', type=str, action='append', default=[], help='mate/winning/defensive')
     parser.add_argument('-m', '--multipv', type=int, default=2)
     parser.add_argument('-d', '--depth', type=int, default=8, help='Engine search depth. Important for puzzle accuracy.')
-    parser.add_argument('-n', '--min-difficulty', type=int, default=1, help='minimum difficulty')
-    parser.add_argument('-x', '--max-difficulty', type=int, default=100, help='maximum difficulty')
-    parser.add_argument('-q', '--min-quality', type=float, default=0.2, help='minimum puzzle quality [0,1]')
-    parser.add_argument('-w', '--win-threshold', type=int, default=500, help='centipawn threshold for winning positions')
+    parser.add_argument('-w', '--win-threshold', type=int, default=400, help='centipawn threshold for winning positions')
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine], dict(args.ucioptions))
+    engine.setoption('multipv', args.multipv)
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with fileinput.input(args.epd_files) as instream:
-        generate_puzzles(instream, sys.stdout, engine, args.variant, args.types, args.multipv, args.depth,
-                         args.min_difficulty, args.max_difficulty, args.min_quality,
-                         args.win_threshold, args.unclear_threshold)
+        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold)

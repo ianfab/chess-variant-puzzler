@@ -32,7 +32,7 @@ jobs:
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # the GitHub editor is 127 chars wide
-        flake8 . --count --max-complexity=10 --max-line-length=127 --statistics
+        flake8 . --count --max-complexity=12 --max-line-length=127 --statistics
     - name: Run unittests
       run: |
         python tests.py
@@ -45,7 +45,7 @@ jobs:
         python generator.py -e ./fairy-stockfish -c 500 > test.fen
     - name: Run puzzler.py
       run: |
-        python puzzler.py -e ./fairy-stockfish -d 6 -n 0 test.fen > test.epd
+        python puzzler.py -e ./fairy-stockfish -d 6 test.fen > test.epd
     - name: Run pgn.py
       run: |
         python pgn.py test.epd
