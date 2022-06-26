@@ -146,8 +146,11 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
         accuracies = []
         accuracies2 = []
         types = []
+        mate_pvs = []
         while True:
             puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold)
+            if puzzle_type == "mate":
+                mate_pvs.append(info[-1][0]['pv'])
             if not puzzle_type:
                 # trim last opponent move
                 if pv:
@@ -166,6 +169,13 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
                 break
 
         if len(pv) > stm_index:
+            # cover the whole mate sequence
+            if types[0] == "mate":
+                mate_pv_length = (int(evals[0]["score"][1]) * 2) - 1
+                if len(pv) < mate_pv_length:
+                    mate_pv = next((x for x in mate_pvs if len(x) == mate_pv_length), None)
+                    if mate_pv is not None:
+                        pv = mate_pv
             std = np.std([value(e, win_threshold) for e in evals])
             difficulty = 4 * volatilities[0] + 2 * std + accuracies[0]
             content = len(pv) - stm_index - 40 * volatilities2[0]
