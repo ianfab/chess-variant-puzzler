@@ -174,7 +174,7 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
                 mate_pv_length = (int(evals[0]["score"][1]) * 2) - 1
                 if len(pv) < mate_pv_length:
                     mate_pv = next((x for x in mate_pvs if len(x) == mate_pv_length), None)
-                    if mate_pv is not None:
+                    if mate_pv is not None and mate_pv[:len(pv)] == pv:
                         pv = mate_pv
             std = np.std([value(e, win_threshold) for e in evals])
             difficulty = 4 * volatilities[0] + 2 * std + accuracies[0]
