@@ -1,3 +1,4 @@
 pyffish
 tqdm
 numpy
+chess
