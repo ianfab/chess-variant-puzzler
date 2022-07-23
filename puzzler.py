@@ -54,18 +54,18 @@ def value(info_line, scale):
         return sigmoid(float(info_line['score'][1]) / scale)
 
 
-def is_shortest_win(candidate, first_alt):
-    return is_mate(candidate) and not (is_mate(first_alt) and mate_distance(first_alt) < mate_distance(candidate) * 2)
+def is_shortest_win(candidate, first_alt, mate_distance_ratio):
+    return is_mate(candidate) and (not is_mate(first_alt) or mate_distance(first_alt) >= mate_distance(candidate) * mate_distance_ratio)
 
 
-def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold):
+def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold, mate_distance_ratio):
     scale = win_threshold * 0.8
     min_diff = sigmoid(win_threshold / scale) - sigmoid(unclear_threshold / scale)
 
     candidate = multipv_info[0]
     first_alt = multipv_info[1]
 
-    if value(candidate, scale) - value(first_alt, scale) >= min_diff or is_shortest_win(candidate, first_alt):
+    if value(candidate, scale) - value(first_alt, scale) >= min_diff or is_shortest_win(candidate, first_alt, mate_distance_ratio):
         if is_mate(candidate):
             return 'mate'
         elif has_cp(candidate, win_threshold):
@@ -78,7 +78,7 @@ def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold):
     return None
 
 
-def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_threshold):
+def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio):
     if len(sf.legal_moves(variant, fen, moves)) <= 2:
         return None, None
 
@@ -87,7 +87,7 @@ def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_thresh
     engine.position(fen, moves)
     _, info = engine.go(depth=depth)
 
-    theme = get_puzzle_theme(info[-1], win_threshold, unclear_threshold)
+    theme = get_puzzle_theme(info[-1], win_threshold, unclear_threshold, mate_distance_ratio)
     return theme, info
 
 
@@ -114,11 +114,15 @@ def rate_puzzle(info, win_threshold):
             volatility2 += abs(v1 - last_second_score)
         last_score = v0
         last_second_score = v1
+    if is_mate(multiinf[0]) and is_mate(multiinf[1]):
+        mate_distance_fraction = mate_distance(multiinf[0]) / mate_distance(multiinf[1])
+    else:
+        mate_distance_fraction = 0
 
-    return volatility / len(info), volatility2 / len(info),  accuracy / len(info),  accuracy2 / len(info), quality / len(info)
+    return volatility / len(info), volatility2 / len(info),  accuracy / len(info),  accuracy2 / len(info), quality / len(info), mate_distance_fraction
 
 
-def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold):
+def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio):
     # Before the first line has been read, filename() returns None.
     if instream.filename() is None:
         filename = instream._files[0]
@@ -145,21 +149,26 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
         volatilities2 = []
         accuracies = []
         accuracies2 = []
+        mate_distance_fractions = []
         types = []
         while True:
-            puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold)
+            puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio)
             if not puzzle_type:
                 # trim last opponent move
                 if pv:
                     pv.pop()
+                # re-tag incomplete mates
+                if types and types[0] == 'mate':
+                    types[0] = 'partial-mate'
                 break
             evals.append(info[-1][0])
-            volatility, volatility2, accuracy, accuracy2, quality = rate_puzzle(info, win_threshold)
+            volatility, volatility2, accuracy, accuracy2, quality, mate_distance_fraction = rate_puzzle(info, win_threshold)
             qualities.append(quality)
             volatilities.append(volatility)
             volatilities2.append(volatility2)
             accuracies.append(accuracy)
             accuracies2.append(accuracy2)
+            mate_distance_fractions.append(mate_distance_fraction)
             types.append(puzzle_type)
             pv += info[-1][0]['pv'][:2]
             if len(info[-1][0]['pv']) < 2:
@@ -184,6 +193,7 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
             annotations['accuracy'] = '{:.3f}'.format(accuracies[0])
             annotations['accuracy2'] = '{:.3f}'.format(accuracies2[0])
             annotations['std'] = '{:.3f}'.format(std)
+            annotations['ambiguity'] = '{:.3f}'.format(max(mate_distance_fractions))
             annotations['type'] = types[0]
             annotations['pv'] = ','.join(pv)
             ops = ';'.join('{} {}'.format(k, v) for k, v in annotations.items())
@@ -201,10 +211,11 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--depth', type=int, default=8, help='Engine search depth. Important for puzzle accuracy.')
     parser.add_argument('-w', '--win-threshold', type=int, default=400, help='centipawn threshold for winning positions')
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
+    parser.add_argument('-r', '--mate-distance-ratio', type=float, default=1.5, help='minimum ratio of second best to best mate distance')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine], dict(args.ucioptions))
     engine.setoption('multipv', args.multipv)
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with fileinput.input(args.epd_files) as instream:
-        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold)
+        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio)
