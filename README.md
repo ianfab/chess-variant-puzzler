@@ -40,7 +40,7 @@ curl -O https://database.lichess.org/lichess_db_puzzle.csv.bz2
 # Unpack
 bzip2 -dk lichess_db_puzzle.csv.bz2
 # Extract subset
-head -100 /mnt/Schach/FENs/lichess_db_puzzle.csv > test.csv
+head -100 lichess_db_puzzle.csv > test.csv
 # Prepare input FENs
 cut -d " " -f 1-6 test.csv | cut -d "," -f 2,3 --output-delimiter=";sm " > test.fen
 # Run puzzler
