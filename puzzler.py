@@ -122,7 +122,10 @@ def rate_puzzle(info, win_threshold):
     return volatility / len(info), volatility2 / len(info),  accuracy / len(info),  accuracy2 / len(info), quality / len(info), mate_distance_fraction
 
 
-def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio):
+def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio, failed_file):
+    if failed_file:
+        ff = open(failed_file, "w")
+
     # Before the first line has been read, filename() returns None.
     if instream.filename() is None:
         filename = instream._files[0]
@@ -198,6 +201,11 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
             annotations['pv'] = ','.join(pv)
             ops = ';'.join('{} {}'.format(k, v) for k, v in annotations.items())
             outstream.write('{};{}\n'.format(fen, ops))
+        elif failed_file:
+            ff.write_file(epd)
+
+    if failed_file:
+        ff.close()
 
 
 if __name__ == '__main__':
@@ -212,10 +220,11 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--win-threshold', type=int, default=400, help='centipawn threshold for winning positions')
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
     parser.add_argument('-r', '--mate-distance-ratio', type=float, default=1.5, help='minimum ratio of second best to best mate distance')
+    parser.add_argument('-f', '--failed-file', help='output file name for epd lines producing no puzzle')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine], dict(args.ucioptions))
     engine.setoption('multipv', args.multipv)
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with fileinput.input(args.epd_files) as instream:
-        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio)
+        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio, args.failed_file)
