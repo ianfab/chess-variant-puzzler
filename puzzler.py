@@ -122,9 +122,9 @@ def rate_puzzle(info, win_threshold):
     return volatility / len(info), volatility2 / len(info),  accuracy / len(info),  accuracy2 / len(info), quality / len(info), mate_distance_fraction
 
 
-def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio, failed):
-    if failed:
-        ff = open(failed, "w")
+def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio, failed_file):
+    if failed_file:
+        ff = open(failed_file, "w")
 
     # Before the first line has been read, filename() returns None.
     if instream.filename() is None:
@@ -201,10 +201,10 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
             annotations['pv'] = ','.join(pv)
             ops = ';'.join('{} {}'.format(k, v) for k, v in annotations.items())
             outstream.write('{};{}\n'.format(fen, ops))
-        elif failed:
-            ff.write(epd)
+        elif failed_file:
+            ff.write_file(epd)
 
-    if failed:
+    if failed_file:
         ff.close()
 
 
@@ -227,4 +227,4 @@ if __name__ == '__main__':
     engine.setoption('multipv', args.multipv)
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with fileinput.input(args.epd_files) as instream:
-        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio, args.failed)
+        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio, args.failed_file)
