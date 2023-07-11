@@ -92,9 +92,6 @@ def timeout_monitor(engine: uci.Engine, timeout, count_time: threading.Event):
         engine.write('stop\n')
         count_time.clear()
 
-    
-
-
 def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio, count_time: threading.Event):
     if len(sf.legal_moves(variant, fen, moves)) <= 2:
         return None, None
@@ -254,7 +251,7 @@ if __name__ == '__main__':
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
     parser.add_argument('-r', '--mate-distance-ratio', type=float, default=1.5, help='minimum ratio of second best to best mate distance')
     parser.add_argument('-f', '--failed-file', help='output file name for epd lines producing no puzzle')
-    parser.add_argument('-t', '--timeout', type=float, help='maximum time to analysis a single fen in secound')
+    parser.add_argument('-t', '--timeout', type=int, help='maximum time to analysis a single fen in secound')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine], dict(args.ucioptions))
