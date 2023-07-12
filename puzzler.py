@@ -88,9 +88,9 @@ def timeout_monitor(engine: uci.Engine, timeout, count_time: threading.Event):
                 break
         if not count_time.is_set():
             continue
-
-        engine.write('stop\n')
-        count_time.clear()
+        with lock:
+            engine.write('stop\n')
+            count_time.clear()
 
 def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio, count_time: threading.Event):
     if len(sf.legal_moves(variant, fen, moves)) <= 2:
