@@ -14,7 +14,10 @@ def line_count(filename):
 
 def filter(annotations, min, max, values):
     for k, v in min.items():
-        if float(annotations.get(k, 0)) < float(v):
+        if k == 'pv':
+            if len(annotations['pv'].split(',')) < int(v):
+                return True
+        elif float(annotations.get(k, 0)) < float(v):
             return True
     for k, v in max.items():
         if float(annotations.get(k, 0)) > float(v):
