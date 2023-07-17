@@ -3,7 +3,8 @@ import fileinput
 from functools import partial
 import math
 import sys
-
+import threading
+import time
 from tqdm import tqdm
 import pyffish as sf
 import numpy as np
@@ -77,18 +78,31 @@ def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold, mate_distan
 
     return None
 
+def timeout_monitor(engine: uci.Engine, timeout, count_time: threading.Event):
+    while True:
+        count_time.wait()
+        start_time = time.time()
+        lock = threading.Lock()
+        while time.time() < start_time + timeout:
+            if not count_time.is_set():
+                break
+        else:
+            with lock:
+                engine.write('stop\n')
+                count_time.clear()
+        
 
-def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio):
+def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio, count_time: threading.Event):
     if len(sf.legal_moves(variant, fen, moves)) <= 2:
         return None, None
-
     engine.setoption('UCI_Variant', variant)
     engine.newgame()
     engine.position(fen, moves)
     _, info = engine.go(depth=depth)
-
-    theme = get_puzzle_theme(info[-1], win_threshold, unclear_threshold, mate_distance_ratio)
-    return theme, info
+    if count_time.is_set():
+        theme = get_puzzle_theme(info[-1], win_threshold, unclear_threshold, mate_distance_ratio)
+        return theme, info
+    raise TimeoutError
 
 
 def rate_puzzle(info, win_threshold):
@@ -122,7 +136,7 @@ def rate_puzzle(info, win_threshold):
     return volatility / len(info), volatility2 / len(info),  accuracy / len(info),  accuracy2 / len(info), quality / len(info), mate_distance_fraction
 
 
-def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio, failed_file):
+def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio, failed_file, timeout):
     if failed_file:
         ff = open(failed_file, "w")
 
@@ -135,6 +149,11 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
     # When reading from sys.stdin, filename() is "-"
     total = None if (filename == "-") else line_count(filename)
 
+    count_time = threading.Event()
+    monitor_thread = threading.Thread(target=timeout_monitor, daemon=True, args=[engine, timeout, count_time])
+    monitor_thread.start()
+    
+    
     for epd in tqdm(instream, total=total):
         tokens = epd.strip().split(';')
         fen = tokens[0]
@@ -154,8 +173,15 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
         accuracies2 = []
         mate_distance_fractions = []
         types = []
-        while True:
-            puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio)
+        
+        is_timed_out = False	
+        count_time.set()
+        while True:	
+            try:
+                puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio, count_time)
+            except TimeoutError:
+                is_timed_out = True
+                break
             if not puzzle_type:
                 # trim last opponent move
                 if pv:
@@ -176,6 +202,10 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
             pv += info[-1][0]['pv'][:2]
             if len(info[-1][0]['pv']) < 2:
                 break
+
+        count_time.clear()
+        if is_timed_out:
+            continue
 
         if len(pv) > stm_index:
             std = np.std([value(e, win_threshold) for e in evals])
@@ -221,10 +251,11 @@ if __name__ == '__main__':
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
     parser.add_argument('-r', '--mate-distance-ratio', type=float, default=1.5, help='minimum ratio of second best to best mate distance')
     parser.add_argument('-f', '--failed-file', help='output file name for epd lines producing no puzzle')
+    parser.add_argument('-t', '--timeout', type=int, default=600, help='maximum time to analysis a single fen in secound')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine], dict(args.ucioptions))
     engine.setoption('multipv', args.multipv)
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with fileinput.input(args.epd_files) as instream:
-        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio, args.failed_file)
+        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio, args.failed_file, args.timeout)

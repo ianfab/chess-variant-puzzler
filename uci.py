@@ -6,7 +6,7 @@ from collections import defaultdict
 
 class Engine():
     def __init__(self, args, options=None):
-        self.process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+        self.process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, bufsize=1)
         self.lock = threading.Lock()
         self.options = options or {}
         self._init()
