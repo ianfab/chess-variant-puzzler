@@ -27,6 +27,9 @@ def generate_fens(json_file, stream, variant, count):
     if variant not in sf.variants():
         raise Exception("Unsupported variant: {}".format(variant))
 
+    show_promoted = variant in ("makruk", "makpong", "cambodian")
+    sfen = False
+
     with open(json_file, "r") as f:
         games = json.load(f)
         cnt = 0
@@ -46,7 +49,7 @@ def generate_fens(json_file, stream, variant, count):
                     start_fen = sf.start_fen(variant)
 
                 for i in range(1, len(moves)):
-                    fen = sf.get_fen(variant, start_fen, moves[:i], is960)
+                    fen = sf.get_fen(variant, start_fen, moves[:i], is960, sfen, show_promoted)
                     stream.write(
                         "{};variant {};site https://www.pychess.org/{}{}".format(
                             fen, variant, _id, os.linesep
