@@ -30,7 +30,7 @@ python3 pgn.py puzzles.epd > puzzles.pgn
 ```
 Run the scripts with `--help` to get help on the supported parameters.
 
-Usually it makes sense to to first run the puzzler with a lower depth but loose filter criteria to pre-filter the positions, followed by a more strict validation at higher depth.
+Usually it makes sense to first run the puzzler with a lower depth but loose filter criteria to pre-filter the positions, followed by a more strict validation at higher depth.
 
 ## Evaluate
 The puzzle generator can be evaluated against an existing database of curated puzzles. E.g., for the example of lichess:

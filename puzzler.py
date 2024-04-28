@@ -251,7 +251,7 @@ if __name__ == '__main__':
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
     parser.add_argument('-r', '--mate-distance-ratio', type=float, default=1.5, help='minimum ratio of second best to best mate distance')
     parser.add_argument('-f', '--failed-file', help='output file name for epd lines producing no puzzle')
-    parser.add_argument('-t', '--timeout', type=int, default=600, help='maximum time to analysis a single fen in secound')
+    parser.add_argument('-t', '--timeout', type=int, default=600, help='maximum time to analysis a single fen in seconds')
     args = parser.parse_args()
 
     engine = uci.Engine([args.engine], dict(args.ucioptions))
