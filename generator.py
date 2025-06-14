@@ -2,6 +2,7 @@ import argparse
 import os
 import random
 import sys
+from concurrent.futures import ProcessPoolExecutor
 
 from tqdm import tqdm
 import pyffish as sf
@@ -36,11 +37,37 @@ def generate_fens(engine, variant, min_depth, max_depth, add_move, required_piec
                 yield fen, bestmove
 
 
-def write_fens(stream, engine, variant, count, min_depth, max_depth, add_move, required_pieces):
+def generate_fens_worker(engine_path, ucioptions, variant, min_depth, max_depth, add_move, required_pieces, count):
+    engine = uci.Engine([engine_path], ucioptions)
     generator = generate_fens(engine, variant, min_depth, max_depth, add_move, required_pieces)
-    for _ in tqdm(range(count)):
-        fen, move = next(generator)
-        stream.write('{};variant {}'.format(fen, variant) + (';sm {}'.format(move) if move else '') + os.linesep)
+    results = []
+    for _ in range(count):
+        results.append(next(generator))
+    return results
+
+
+def write_fens_parallel(stream, engine_path, ucioptions, variant, count, min_depth, max_depth, add_move, required_pieces, workers):
+    chunk_size = count // workers
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        futures = [
+            executor.submit(
+                generate_fens_worker,
+                engine_path,
+                ucioptions,
+                variant,
+                min_depth,
+                max_depth,
+                add_move,
+                required_pieces,
+                chunk_size
+            )
+            for _ in range(workers)
+        ]
+        with tqdm(total=count, desc="Generating positions") as pbar:
+            for future in futures:
+                for fen, move in future.result():
+                    stream.write('{};variant {}'.format(fen, variant) + (';sm {}'.format(move) if move else '') + os.linesep)
+                    pbar.update(1)
 
 
 if __name__ == '__main__':
@@ -55,11 +82,21 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--min-depth', type=int, default=1, help='minimum search depth')
     parser.add_argument('-a', '--add-move', action='store_true', help='add initial move for opposing side')
     parser.add_argument('-p', '--pieces', default=None, help='only return positions containing one of these piece chars (case insensitive)')
+    parser.add_argument('-w', '--workers', type=int, default=1, help='number of parallel workers')
     args = parser.parse_args()
 
     ucioptions = dict(args.ucioptions)
     ucioptions.update({'Skill Level': args.skill_level})
 
-    engine = uci.Engine([args.engine], ucioptions)
-    sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
-    write_fens(sys.stdout, engine, args.variant, args.count, args.min_depth, args.max_depth, args.add_move, args.pieces)
+    write_fens_parallel(
+        sys.stdout,
+        args.engine,
+        ucioptions,
+        args.variant,
+        args.count,
+        args.min_depth,
+        args.max_depth,
+        args.add_move,
+        args.pieces,
+        args.workers
+    )
