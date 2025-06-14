@@ -105,7 +105,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--variant', default='chess', help='variant to generate positions for')
     parser.add_argument('-c', '--count', type=int, default=1000, help='number of positions')
     parser.add_argument('-s', '--skill-level', type=int, default=10, help='engine skill level setting [-20,20]')
-    parser.add_argument('-d', '--max-depth', type=int, default=6, help='maximum search depth')
+    parser.add_argument('-d', '--max-depth', type=int, default=5, help='maximum search depth')
     parser.add_argument('-m', '--min-depth', type=int, default=1, help='minimum search depth')
     parser.add_argument('-a', '--add-move', action='store_true', help='add initial move for opposing side')
     parser.add_argument('-p', '--pieces', default=None, help='only return positions containing one of these piece chars (case insensitive)')

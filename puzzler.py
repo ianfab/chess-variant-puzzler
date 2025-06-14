@@ -137,7 +137,7 @@ def rate_puzzle(info, win_threshold):
     return volatility / len(info), volatility2 / len(info),  accuracy / len(info),  accuracy2 / len(info), quality / len(info), mate_distance_fraction
 
 
-def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio, failed_file, timeout):
+def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold, unclear_threshold, mate_distance_ratio, clean_distance, failed_file, timeout):
     if failed_file:
         ff = open(failed_file, "w")
 
@@ -179,7 +179,9 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
         count_time.set()
         while True:	
             try:
-                puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold, mate_distance_ratio, count_time)
+                # only apply mate distance ratio once clean distance is reached
+                effective_mate_distance_ratio = mate_distance_ratio if (len(pv) - stm_index) / 2 >= clean_distance else 0
+                puzzle_type, info = get_puzzle(current_variant, fen, pv, engine, depth, win_threshold, unclear_threshold, effective_mate_distance_ratio, count_time)
             except TimeoutError:
                 is_timed_out = True
                 break
@@ -251,6 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--win-threshold', type=int, default=400, help='centipawn threshold for winning positions')
     parser.add_argument('-u', '--unclear-threshold', type=int, default=100, help='centipawn threshold for unclear positions')
     parser.add_argument('-r', '--mate-distance-ratio', type=float, default=1.5, help='minimum ratio of second best to best mate distance')
+    parser.add_argument('-c', '--clean-distance', type=int, default=0, help='number of moves where a mate puzzle needs to have no other win')
     parser.add_argument('-f', '--failed-file', help='output file name for epd lines producing no puzzle')
     parser.add_argument('-t', '--timeout', type=int, default=600, help='maximum time to analysis a single fen in seconds')
     args = parser.parse_args()
@@ -259,4 +262,4 @@ if __name__ == '__main__':
     engine.setoption('multipv', args.multipv)
     sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     with fileinput.input(args.epd_files) as instream:
-        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio, args.failed_file, args.timeout)
+        generate_puzzles(instream, sys.stdout, engine, args.variant, args.depth, args.win_threshold, args.unclear_threshold, args.mate_distance_ratio, args.clean_distance, args.failed_file, args.timeout)
