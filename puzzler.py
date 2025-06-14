@@ -60,13 +60,14 @@ def is_shortest_win(candidate, first_alt, mate_distance_ratio):
 
 
 def get_puzzle_theme(multipv_info, win_threshold, unclear_threshold, mate_distance_ratio):
-    scale = win_threshold * 0.8
+    scale = win_threshold * 0.7
     min_diff = sigmoid(win_threshold / scale) - sigmoid(unclear_threshold / scale)
 
     candidate = multipv_info[0]
     first_alt = multipv_info[1]
 
-    if value(candidate, scale) - value(first_alt, scale) >= min_diff or is_shortest_win(candidate, first_alt, mate_distance_ratio):
+    if (    value(candidate, scale) - value(first_alt, scale) >= min_diff
+        or (mate_distance_ratio and is_shortest_win(candidate, first_alt, mate_distance_ratio))):
         if is_mate(candidate):
             return 'mate'
         elif has_cp(candidate, win_threshold):
