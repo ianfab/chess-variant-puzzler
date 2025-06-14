@@ -2,7 +2,7 @@ import argparse
 import os
 import random
 import sys
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from tqdm import tqdm
 import pyffish as sf
@@ -47,10 +47,16 @@ def generate_fens_worker(engine_path, ucioptions, variant, min_depth, max_depth,
 
 
 def write_fens_parallel(stream, engine_path, ucioptions, variant, count, min_depth, max_depth, add_move, required_pieces, workers):
-    chunk_size = count // workers
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = [
-            executor.submit(
+    batch_size = 1000
+    total_batches = (count + batch_size - 1) // batch_size
+    submitted = 0
+    written = 0
+    with ProcessPoolExecutor(max_workers=workers) as executor, tqdm(total=count, desc="Generating positions") as pbar:
+        futures = []
+        # Submit initial batches
+        for _ in range(min(workers, total_batches)):
+            submit_count = min(batch_size, count - submitted * batch_size)
+            futures.append(executor.submit(
                 generate_fens_worker,
                 engine_path,
                 ucioptions,
@@ -59,15 +65,36 @@ def write_fens_parallel(stream, engine_path, ucioptions, variant, count, min_dep
                 max_depth,
                 add_move,
                 required_pieces,
-                chunk_size
-            )
-            for _ in range(workers)
-        ]
-        with tqdm(total=count, desc="Generating positions") as pbar:
-            for future in futures:
-                for fen, move in future.result():
+                submit_count
+            ))
+            submitted += 1
+        while futures:
+            for future in as_completed(futures):
+                results = future.result()
+                for fen, move in results:
                     stream.write('{};variant {}'.format(fen, variant) + (';sm {}'.format(move) if move else '') + os.linesep)
+                    written += 1
                     pbar.update(1)
+                    if written >= count:
+                        stream.flush()
+                        return
+                stream.flush()  # Flush after each batch
+                futures.remove(future)
+                # Submit next batch if needed
+                if submitted < total_batches:
+                    submit_count = min(batch_size, count - submitted * batch_size)
+                    futures.append(executor.submit(
+                        generate_fens_worker,
+                        engine_path,
+                        ucioptions,
+                        variant,
+                        min_depth,
+                        max_depth,
+                        add_move,
+                        required_pieces,
+                        submit_count
+                    ))
+                    submitted += 1
 
 
 if __name__ == '__main__':

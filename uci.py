@@ -11,6 +11,14 @@ class Engine():
         self.options = options or {}
         self._init()
 
+    def __del__(self):
+        if hasattr(self, 'process') and self.process and self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=2)
+            except Exception:
+                self.process.kill()
+
     def write(self, message):
         with self.lock:
             self.process.stdin.write(message)
