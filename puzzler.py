@@ -155,7 +155,7 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
     monitor_thread.start()
     
     
-    for epd in tqdm(instream, total=total):
+    for i, epd in enumerate(tqdm(instream, total=total)):
         tokens = epd.strip().split(';')
         fen = tokens[0]
         annotations = dict(token.split(' ', 1) for token in tokens[1:])
@@ -236,6 +236,9 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
             outstream.write('{};{}\n'.format(fen, ops))
         elif failed_file:
             ff.write_file(epd)
+
+        if i % 100 == 0:
+            outstream.flush()
 
     if failed_file:
         ff.close()
