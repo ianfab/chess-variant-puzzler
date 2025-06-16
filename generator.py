@@ -10,16 +10,20 @@ import pyffish as sf
 import uci
 
 
-def generate_fens(engine, variant, min_depth, max_depth, add_move, required_pieces):
+def generate_fens(engine, variant, min_depth, max_depth, add_move, required_pieces, fen_list=None):
     if variant not in sf.variants():
         raise Exception("Unsupported variant: {}".format(variant))
 
-    start_fen = sf.start_fen(variant)
+    if fen_list:
+        fen_choices = fen_list
+    else:
+        fen_choices = [sf.start_fen(variant)]
 
     engine.setoption('UCI_Variant', variant)
 
     fens = set()
     while True:
+        start_fen = random.choice(fen_choices)
         engine.newgame()
         move_stack = []
         while (sf.legal_moves(variant, start_fen, move_stack)
@@ -37,16 +41,16 @@ def generate_fens(engine, variant, min_depth, max_depth, add_move, required_piec
                 yield fen, bestmove
 
 
-def generate_fens_worker(engine_path, ucioptions, variant, min_depth, max_depth, add_move, required_pieces, count):
+def generate_fens_worker(engine_path, ucioptions, variant, min_depth, max_depth, add_move, required_pieces, count, fen_list=None):
     engine = uci.Engine([engine_path], ucioptions)
-    generator = generate_fens(engine, variant, min_depth, max_depth, add_move, required_pieces)
+    generator = generate_fens(engine, variant, min_depth, max_depth, add_move, required_pieces, fen_list)
     results = []
     for _ in range(count):
         results.append(next(generator))
     return results
 
 
-def write_fens_parallel(stream, engine_path, ucioptions, variant, count, min_depth, max_depth, add_move, required_pieces, workers):
+def write_fens_parallel(stream, engine_path, ucioptions, variant, count, min_depth, max_depth, add_move, required_pieces, workers, fen_list=None):
     batch_size = 1000
     total_batches = (count + batch_size - 1) // batch_size
     submitted = 0
@@ -65,7 +69,8 @@ def write_fens_parallel(stream, engine_path, ucioptions, variant, count, min_dep
                 max_depth,
                 add_move,
                 required_pieces,
-                submit_count
+                submit_count,
+                fen_list
             ))
             submitted += 1
         while futures:
@@ -92,7 +97,8 @@ def write_fens_parallel(stream, engine_path, ucioptions, variant, count, min_dep
                         max_depth,
                         add_move,
                         required_pieces,
-                        submit_count
+                        submit_count,
+                        fen_list
                     ))
                     submitted += 1
 
@@ -110,10 +116,16 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--add-move', action='store_true', help='add initial move for opposing side')
     parser.add_argument('-p', '--pieces', default=None, help='only return positions containing one of these piece chars (case insensitive)')
     parser.add_argument('-w', '--workers', type=int, default=1, help='number of parallel workers')
+    parser.add_argument('-f', '--fenfile', default=None, help='Optional FEN/EPD file to use as starting positions')
     args = parser.parse_args()
 
     ucioptions = dict(args.ucioptions)
     ucioptions.update({'Skill Level': args.skill_level})
+
+    fen_list = None
+    if args.fenfile:
+        with open(args.fenfile) as f:
+            fen_list = [line.split(';')[0].strip() for line in f if line.strip() and not line.startswith('#')]
 
     write_fens_parallel(
         sys.stdout,
@@ -125,5 +137,6 @@ if __name__ == '__main__':
         args.max_depth,
         args.add_move,
         args.pieces,
-        args.workers
+        args.workers,
+        fen_list
     )
