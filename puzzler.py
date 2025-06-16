@@ -101,6 +101,10 @@ def get_puzzle(variant, fen, moves, engine, depth, win_threshold, unclear_thresh
     engine.position(fen, moves)
     _, info = engine.go(depth=depth)
     if count_time.is_set():
+        if not info or not isinstance(info[-1], list) or len(info[-1]) < 2:
+            sys.stderr.write(f"Warning: No valid multipv info for {fen} after {depth} depth search.\n")
+            sys.stderr.write(f"{info}\n")
+            return None, info
         theme = get_puzzle_theme(info[-1], win_threshold, unclear_threshold, mate_distance_ratio)
         return theme, info
     raise TimeoutError
