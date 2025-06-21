@@ -214,7 +214,7 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
         if is_timed_out:
             continue
 
-        if len(pv) > stm_index:
+        if len(pv) > stm_index and (not mate_only or (len(types) > 0 and types[0] == 'mate')):
             std = np.std([value(e, win_threshold) for e in evals])
             difficulty = 4 * volatilities[0] + 2 * std + accuracies[0]
             content = len(pv) - stm_index - 40 * volatilities2[0]
