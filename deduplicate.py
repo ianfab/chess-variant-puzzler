@@ -73,7 +73,7 @@ def fen_to_square_map(fen):
     return square_map
 
 
-def deduplicate(instream, outstream, king, sort_criteria=None, board_similarity_threshold=0.8, move_similarity_threshold=0.8, overall_similarity_threshold=0.5, verbose=False):
+def deduplicate(instream, outstream, king, sort_criteria=None, board_similarity_threshold=0.8, move_similarity_threshold=0.8, overall_similarity_threshold=0.5, verbosity=0):
     epds = [epd for epd in instream]
     if sort_criteria:
         epds.sort(key=lambda x: get_sort_key(sort_criteria, x))
@@ -120,7 +120,7 @@ def deduplicate(instream, outstream, king, sort_criteria=None, board_similarity_
             if (board_similarity > board_similarity_threshold or
                move_similarity > move_similarity_threshold or
                overall_similarity > overall_similarity_threshold):
-                if verbose:
+                if verbosity > 1:
                     sys.stderr.write(f"Pattern: {pattern}, Board similarity: {board_similarity:.2f}, Move similarity: {move_similarity:.2f}, Overall similarity: {overall_similarity:.2f}\n{epd}{puzzle2['epd']}\n")
                 break
         else:
@@ -130,9 +130,10 @@ def deduplicate(instream, outstream, king, sort_criteria=None, board_similarity_
                 unique.append({'board': board, 'sans': sans, 'epd': epd})
             patterns[pattern].append(epd)
 
-    for pattern, epd_list in sorted(patterns.items(), key=lambda x: len(x[1]), reverse=True):
-        if len(epd_list) > 1:
-            sys.stderr.write(f"{pattern}: {len(epd_list)} -> 1\n")
+    if verbosity:
+        for pattern, epd_list in sorted(patterns.items(), key=lambda x: len(x[1]), reverse=True):
+            if len(epd_list) > 1:
+                sys.stderr.write(f"{pattern}: {len(epd_list)} -> 1\n")
 
 
 if __name__ == '__main__':
@@ -144,7 +145,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--board-similarity', type=float, default=0.8, help='Similarity threshold for board deduplication (default: 0.8)')
     parser.add_argument('-m', '--move-similarity', type=float, default=0.8, help='Similarity threshold for SAN deduplication (default: 0.8)')
     parser.add_argument('-o', '--overall-similarity', type=float, default=0.5, help='Similarity threshold for the product of board and move similarity (default: 0.5)')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output for similarity checks')
+    parser.add_argument('-v', '--verbosity', type=int, default=0, help='Enable verbose output for similarity checks')
     args = parser.parse_args()
 
     with fileinput.input(args.epd_files) as instream:
@@ -153,5 +154,5 @@ if __name__ == '__main__':
             board_similarity_threshold=args.board_similarity,
             move_similarity_threshold=args.move_similarity,
             overall_similarity_threshold=args.overall_similarity,
-            verbose=args.verbose
+            verbosity=args.verbosity
         )

@@ -4,6 +4,7 @@ from functools import partial
 import sys
 
 from tqdm import tqdm
+import pyffish
 
 
 def line_count(filename):
@@ -12,20 +13,30 @@ def line_count(filename):
     return sum(buf.count(b'\n') for buf in bufgen)
 
 
+def get_fen(variant, fen, moves):
+    return pyffish.get_fen(variant, fen, moves)
+
+
 def net_material(piece_values, fen):
+    default_value = 0 if piece_values else 1
     player_to_move = fen.split()[1]
     board = fen.split()[0]
     white_total = 0
     black_total = 0
     for c in board:
         if c.isupper():
-            white_total += piece_values.get(c.lower(), 0)
+            white_total += piece_values.get(c.lower(), default_value)
         elif c.islower():
-            black_total += piece_values.get(c.lower(), 0)
+            black_total += piece_values.get(c.lower(), default_value)
     if player_to_move == 'w':
         return white_total - black_total
     else:
         return black_total - white_total
+
+
+def final_net_material(piece_values, fen, annotations):
+    fen = get_fen(annotations['variant'], fen, annotations['pv'].split(',')) if 'pv' in annotations else fen
+    return net_material(piece_values, fen)
 
 
 def filter(annotations, min, max, values):
@@ -57,7 +68,7 @@ def filter_puzzles(instream, outstream, min, max, values, inferred_annotations):
         fen = epd.split(';')[0]
         annotations = dict(token.split(' ', 1) for token in epd.strip().split(';')[1:])
         for k, v in inferred_annotations.items():
-            annotations[k] = v(fen)
+            annotations[k] = v(fen, annotations)
         if not filter(annotations, min, max, values):
             outstream.write(epd)
 
@@ -80,7 +91,9 @@ if __name__ == '__main__':
         parser.error(f"Error parsing --piece-values: {e}")
 
     inferred_annotations = {
-        'material': lambda fen: net_material(piece_values_dict, fen)
+        'material': lambda fen, annotations: net_material(piece_values_dict, fen),
+        'finalmaterial': lambda fen, annotations: -final_net_material(piece_values_dict, fen, annotations),
+        'materialdiff': lambda fen, annotations: -final_net_material(piece_values_dict, fen, annotations) - net_material(piece_values_dict, fen),
     }
 
     with fileinput.input(args.epd_files) as instream:
