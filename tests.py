@@ -34,29 +34,39 @@ class TestKif(unittest.TestCase):
 
     def test_coordinate_mapping(self):
         """Test pyffish to USI coordinate conversion"""
-        # Test square conversion
-        self.assertEqual(kif.pyffish_to_usi_square('h2'), '2h')
-        self.assertEqual(kif.pyffish_to_usi_square('c2'), '7h')
-        self.assertEqual(kif.pyffish_to_usi_square('a1'), '9i')
-        self.assertEqual(kif.pyffish_to_usi_square('i9'), '1a')
+        # Test square conversion for 9x9 shogi
+        self.assertEqual(kif.pyffish_to_usi_square('h2', 'shogi'), '2h')
+        self.assertEqual(kif.pyffish_to_usi_square('c2', 'shogi'), '7h')
+        self.assertEqual(kif.pyffish_to_usi_square('a1', 'shogi'), '9i')
+        self.assertEqual(kif.pyffish_to_usi_square('i9', 'shogi'), '1a')
+        
+        # Test square conversion for 5x5 minishogi
+        self.assertEqual(kif.pyffish_to_usi_square('a1', 'minishogi'), '5e')
+        self.assertEqual(kif.pyffish_to_usi_square('e5', 'minishogi'), '1a')
+        self.assertEqual(kif.pyffish_to_usi_square('c3', 'minishogi'), '3c')
         
         # Test invalid squares
-        self.assertIsNone(kif.pyffish_to_usi_square('z1'))
-        self.assertIsNone(kif.pyffish_to_usi_square('a0'))
-        self.assertIsNone(kif.pyffish_to_usi_square(''))
+        self.assertIsNone(kif.pyffish_to_usi_square('z1', 'shogi'))
+        self.assertIsNone(kif.pyffish_to_usi_square('a0', 'shogi'))
+        self.assertIsNone(kif.pyffish_to_usi_square('', 'shogi'))
 
     def test_move_conversion(self):
         """Test pyffish UCI to USI move conversion"""
-        # Normal moves
-        self.assertEqual(kif.pyffish_to_usi_move('h2c2'), '2h7h')
-        self.assertEqual(kif.pyffish_to_usi_move('g7g6'), '3c3d')
+        # Normal moves for 9x9 shogi
+        self.assertEqual(kif.pyffish_to_usi_move('h2c2', 'shogi'), '2h7h')
+        self.assertEqual(kif.pyffish_to_usi_move('g7g6', 'shogi'), '3c3d')
+        
+        # Normal moves for 5x5 minishogi
+        self.assertEqual(kif.pyffish_to_usi_move('d1a1', 'minishogi'), '2e5e')
+        self.assertEqual(kif.pyffish_to_usi_move('c3c4', 'minishogi'), '3c3b')
         
         # Drop moves (if supported)
-        self.assertEqual(kif.pyffish_to_usi_move('P@e4'), 'P*5f')
+        self.assertEqual(kif.pyffish_to_usi_move('P@e4', 'shogi'), 'P*5f')
+        self.assertEqual(kif.pyffish_to_usi_move('P@c3', 'minishogi'), 'P*3c')
         
         # Invalid moves
-        self.assertIsNone(kif.pyffish_to_usi_move(''))
-        self.assertIsNone(kif.pyffish_to_usi_move('xyz'))
+        self.assertIsNone(kif.pyffish_to_usi_move('', 'shogi'))
+        self.assertIsNone(kif.pyffish_to_usi_move('xyz', 'shogi'))
 
     def test_shogi_variant_detection(self):
         """Test detection of shogi variants"""

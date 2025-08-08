@@ -8,23 +8,42 @@ import shogi
 import shogi.KIF
 
 
-def pyffish_to_usi_square(pyffish_square):
+def get_board_dimensions(variant):
+    """Get board dimensions for a shogi variant."""
+    try:
+        start_fen = sf.start_fen(variant)
+        board_part = start_fen.split()[0]
+        ranks = board_part.split('/')
+        return len(ranks), len(ranks)  # Assuming square boards for shogi variants
+    except:
+        return 9, 9  # Default to standard shogi
+
+
+def pyffish_to_usi_square(pyffish_square, variant):
     """Convert pyffish square notation to USI square notation.
     
-    Pyffish uses: files a-i (left to right), ranks 1-9 (bottom to top)
-    USI uses: files 9-1 (left to right), ranks a-i (top to bottom)
+    Pyffish uses: files a-... (left to right), ranks 1-... (bottom to top)
+    USI uses: files ...-1 (left to right), ranks a-... (top to bottom)
+    
+    Board size is determined dynamically based on the variant.
     """
     if len(pyffish_square) != 2:
         return None
         
-    pyffish_file = pyffish_square[0]  # a-i
-    pyffish_rank = pyffish_square[1]  # 1-9
+    pyffish_file = pyffish_square[0]  # a-...
+    pyffish_rank = pyffish_square[1]  # 1-...
     
-    # Convert file: a->9, b->8, c->7, d->6, e->5, f->4, g->3, h->2, i->1
-    file_map = {'a': '9', 'b': '8', 'c': '7', 'd': '6', 'e': '5', 'f': '4', 'g': '3', 'h': '2', 'i': '1'}
+    # Get board dimensions
+    board_width, board_height = get_board_dimensions(variant)
     
-    # Convert rank: 1->i, 2->h, 3->g, 4->f, 5->e, 6->d, 7->c, 8->b, 9->a
-    rank_map = {'1': 'i', '2': 'h', '3': 'g', '4': 'f', '5': 'e', '6': 'd', '7': 'c', '8': 'b', '9': 'a'}
+    # Create dynamic file mapping: a->board_width, b->board_width-1, ...
+    file_chars = [chr(ord('a') + i) for i in range(board_width)]
+    file_map = {file_chars[i]: str(board_width - i) for i in range(board_width)}
+    
+    # Create dynamic rank mapping: 1->last_rank_char, 2->second_last_rank_char, ...
+    rank_chars = [chr(ord('a') + i) for i in range(board_height)]
+    rank_digits = [str(i + 1) for i in range(board_height)]
+    rank_map = {rank_digits[i]: rank_chars[board_height - 1 - i] for i in range(board_height)}
     
     usi_file = file_map.get(pyffish_file)
     usi_rank = rank_map.get(pyffish_rank)
@@ -34,20 +53,20 @@ def pyffish_to_usi_square(pyffish_square):
     return None
 
 
-def pyffish_to_usi_move(pyffish_move):
+def pyffish_to_usi_move(pyffish_move, variant):
     """Convert pyffish UCI move to USI move."""
     if '@' in pyffish_move:
         # Drop move: piece@square -> piece*square in USI
         parts = pyffish_move.split('@')
         if len(parts) == 2:
             piece = parts[0]
-            square = pyffish_to_usi_square(parts[1])
+            square = pyffish_to_usi_square(parts[1], variant)
             if square:
                 return piece.upper() + '*' + square
     elif len(pyffish_move) == 4:
         # Normal move
-        from_square = pyffish_to_usi_square(pyffish_move[:2])
-        to_square = pyffish_to_usi_square(pyffish_move[2:])
+        from_square = pyffish_to_usi_square(pyffish_move[:2], variant)
+        to_square = pyffish_to_usi_square(pyffish_move[2:], variant)
         if from_square and to_square:
             return from_square + to_square
     return None
@@ -67,7 +86,7 @@ def epd_to_kif(epd_stream, kif_stream):
             continue
             
         fen = tokens[0]
-        annotations = dict(token.split(' ', 1) for token in tokens[1:] if ' ' in token)
+        annotations = dict(token.strip().split(' ', 1) for token in tokens[1:] if ' ' in token.strip())
         variant = annotations.get('variant', '')
 
         # Only process shogi variants for KIF export
@@ -91,7 +110,7 @@ def epd_to_kif(epd_stream, kif_stream):
                 pyffish_move = pyffish_move.strip()
                 if not pyffish_move:
                     continue
-                usi_move = pyffish_to_usi_move(pyffish_move)
+                usi_move = pyffish_to_usi_move(pyffish_move, variant)
                 if usi_move:
                     usi_moves.append(usi_move)
                 else:
@@ -101,27 +120,10 @@ def epd_to_kif(epd_stream, kif_stream):
                 print(f"No valid USI moves found, skipping puzzle", file=sys.stderr)
                 continue
 
-            # Convert pyffish FEN to python-shogi SFEN format
-            # Pyffish uses format: "position[-] turn castling en-passant halfmove fullmove"
-            # Python-shogi expects: "position turn hand halfmove"
-            start_sfen = 'lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1'
-            
-            # Try to parse the provided FEN, but fall back to start position if it fails
+            # Convert pyffish FEN to python-shogi SFEN format using pyffish
             try:
-                # Simple conversion: replace [-] with - and remove extra fields
-                if '[-]' in fen:
-                    # Pyffish format with empty hands
-                    parts = fen.split()
-                    if len(parts) >= 2:
-                        board_part = parts[0]
-                        turn_part = 'b' if parts[1] == 'w' else 'w'  # Flip turn
-                        sfen = f"{board_part} {turn_part} - 1"
-                        board = shogi.Board(sfen=sfen)
-                    else:
-                        board = shogi.Board()
-                else:
-                    # Try as-is first
-                    board = shogi.Board(sfen=fen)
+                start_sfen = sf.get_fen(variant, fen, [], False, True)
+                board = shogi.Board(sfen=start_sfen)
             except (ValueError, IndexError):
                 # If parsing fails, start with default position
                 board = shogi.Board()
