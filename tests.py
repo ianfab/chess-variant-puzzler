@@ -90,12 +90,19 @@ class TestKif(unittest.TestCase):
             kif.epd_to_kif(instream, outstream)
             result = outstream.getvalue()
             
-            # Check that KIF content was generated
-            self.assertIn('# Variant: shogi', result)
-            self.assertIn('# Puzzle Type:', result)
+            # Check that KIF content was generated with proper Japanese format
+            self.assertIn('先手：先手', result)  # First player header
+            self.assertIn('後手：後手', result)  # Second player header
+            self.assertIn('開始日時：', result)  # Start time
+            
+            # Check that the board diagram is present
+            self.assertIn('+---------------------------+', result)
+            
+            # Check that moves are present
+            self.assertIn('手数----指手---------消費時間--', result)
             
             # Check that some KIF-like content was generated (moves, board position, etc.)
-            self.assertGreater(len(result.strip()), 50, "KIF output should contain substantial content")
+            self.assertGreater(len(result.strip()), 100, "KIF output should contain substantial content")
             
         finally:
             sys.stderr = original_stderr
