@@ -122,7 +122,7 @@ def epd_to_kif(epd_stream, kif_stream):
 
             # Convert pyffish FEN to python-shogi SFEN format using pyffish
             try:
-                start_sfen = sf.get_fen(variant, fen, [], False, True)
+                start_sfen = sf.get_fen(variant, fen, [], False, True, True)
                 board = shogi.Board(sfen=start_sfen)
             except (ValueError, IndexError):
                 # If parsing fails, start with default position
@@ -157,9 +157,6 @@ def epd_to_kif(epd_stream, kif_stream):
             kif_content = exporter.kif(sfen_summary)
             
             # Add puzzle metadata as comments
-            kif_stream.write(f"# Puzzle Type: {annotations.get('type', 'Unknown')}\n")
-            kif_stream.write(f"# Site: {annotations.get('site', 'https://github.com/ianfab/Fairy-Stockfish')}\n")
-            kif_stream.write(f"# Variant: {variant}\n")
             kif_stream.write(kif_content)
             kif_stream.write(os.linesep)
 
