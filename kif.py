@@ -2,10 +2,11 @@ import argparse
 import fileinput
 import os
 import sys
+import tempfile
 
 import pyffish as sf
-import shogi
-import shogi.KIF
+import cshogi
+import cshogi.KIF
 
 
 def get_board_dimensions(variant):
@@ -120,13 +121,13 @@ def epd_to_kif(epd_stream, kif_stream):
                 print(f"No valid USI moves found, skipping puzzle", file=sys.stderr)
                 continue
 
-            # Convert pyffish FEN to python-shogi SFEN format using pyffish
+            # Convert pyffish FEN to cshogi SFEN format using pyffish
             try:
                 start_sfen = sf.get_fen(variant, fen, [], False, True, True)
-                board = shogi.Board(sfen=start_sfen)
+                board = cshogi.Board(start_sfen)
             except (ValueError, IndexError):
                 # If parsing fails, start with default position
-                board = shogi.Board()
+                board = cshogi.Board()
 
             # Apply the moves to build the game
             valid_moves = []
@@ -142,23 +143,50 @@ def epd_to_kif(epd_stream, kif_stream):
                 print(f"No valid moves found, skipping puzzle", file=sys.stderr)
                 continue
 
-            # Create sfen_summary for KIF export
-            sfen_summary = {
-                'names': ['先手', '後手'],  # First player, Second player
-                'sfen': start_sfen,  # Starting position
-                'moves': valid_moves,
-                'win': '先手',  # First player wins (puzzle solver)
-                'endgame': '詰み',  # Checkmate
-                'starttime': '2024/01/01 10:00:00',
-            }
+            # Export to KIF format using cshogi
+            try:
+                # Create a temporary file for the KIF exporter
+                with tempfile.NamedTemporaryFile(mode='w+', suffix='.kifu', delete=False) as temp_file:
+                    temp_path = temp_file.name
+                
+                try:
+                    # Create KIF exporter with temporary file path
+                    exporter = cshogi.KIF.Exporter(path=temp_path)
+                    
+                    # Write KIF header with handicap (SFEN) for custom starting position
+                    exporter.header(['先手', '後手'], handicap=f"sfen {start_sfen}")
 
-            # Export to KIF format
-            exporter = shogi.KIF.Exporter()
-            kif_content = exporter.kif(sfen_summary)
-            
-            # Add puzzle metadata as comments
-            kif_stream.write(kif_content)
-            kif_stream.write(os.linesep)
+                    # Write moves to KIF
+                    board = cshogi.Board(start_sfen)
+                    for i, usi_move in enumerate(valid_moves, 1):
+                        try:
+                            move_obj = board.move_from_usi(usi_move)
+                            exporter.move(move_obj, sec=0, sec_sum=0)
+                            board.push_usi(usi_move)
+                        except Exception as move_error:
+                            print(f"Error processing move {usi_move}: {move_error}", file=sys.stderr)
+
+                    # End the game
+                    exporter.end('resign', sec=0, sec_sum=0)
+                    exporter.close()
+                    
+                    # Read the temporary file content and write to stream
+                    with open(temp_path, 'r', encoding='utf-8') as kif_file:
+                        kif_content = kif_file.read()
+                        
+                        if kif_content:
+                            kif_stream.write(kif_content)
+                            if not kif_content.endswith('\n'):
+                                kif_stream.write('\n')
+                        else:
+                            print(f"Warning: KIF exporter returned empty content", file=sys.stderr)
+                finally:
+                    # Clean up temporary file
+                    if os.path.exists(temp_path):
+                        os.unlink(temp_path)
+                    
+            except Exception as export_error:
+                print(f"Error writing KIF: {export_error}", file=sys.stderr)
 
         except Exception as e:
             print(f"Error processing puzzle: {e}", file=sys.stderr)

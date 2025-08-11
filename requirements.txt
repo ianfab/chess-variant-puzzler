@@ -2,4 +2,4 @@ pyffish
 tqdm
 numpy
 chess
-python-shogi
+cshogi
