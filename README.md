@@ -11,6 +11,17 @@ Generating puzzles in PGN format currently consists of running the following scr
 2. `puzzler.py` to identify puzzles within those positions and store them as EPD with annotations. This step can be re-run on the resulting EPD to re-evaluate the puzzles, e.g., at higher depth.
 3. `filter.py` to optionally narrow down the set of puzzles according to difficulty, type, etc.
 4. `pgn.py` to convert the EPD to a PGN.
+5. `kif.py` to convert the EPD to KIF format for shogi variants (lishogi compatibility).
+
+## Export Formats
+
+The puzzle generator supports multiple export formats:
+
+- **EPD**: Extended Position Description format with puzzle annotations
+- **PGN**: Portable Game Notation format for chess variants  
+- **KIF**: Kifu format for shogi variants, compatible with lishogi
+
+The KIF export automatically converts UCI coordinates to USI coordinates and generates proper Japanese notation for shogi puzzles.
 
 ## Setup
 The scripts require at least python3.2 as well as the dependencies from the `requirements.txt`. Install them using
@@ -28,6 +39,17 @@ python3 puzzler.py --engine fairy-stockfish positions.epd > puzzles.epd
 # convert EPD to PGN
 python3 pgn.py puzzles.epd > puzzles.pgn
 ```
+
+For shogi variants, you can also export to KIF format:
+```
+# generate shogi positions
+python3 generator.py --engine fairy-stockfish --variant shogi > shogi_positions.epd
+# extract shogi puzzles
+python3 puzzler.py --engine fairy-stockfish shogi_positions.epd > shogi_puzzles.epd
+# convert EPD to KIF for lishogi compatibility
+python3 kif.py shogi_puzzles.epd > shogi_puzzles.kif
+```
+
 Run the scripts with `--help` to get help on the supported parameters.
 
 Usually it makes sense to first run the puzzler with a lower depth but loose filter criteria to pre-filter the positions, followed by a more strict validation at higher depth.
