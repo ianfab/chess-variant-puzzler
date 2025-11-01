@@ -6,12 +6,13 @@ This is a simple puzzle generator for chess variants based on [Fairy-Stockfish](
 
 Generating puzzles in PGN format currently consists of running the following scripts
 1. `generator.py` to generate a set of positions in FEN/EPD format from playing engine games. This step can be skipped if positions are extracted from other sources such as databases of human games.
+    * For mate puzzles the new puzzle candidate generator in the [NNUE data generator](https://github.com/fairy-stockfish/variant-nnue-tools/blob/tools/docs/generate_puzzles.md) is highly recommended, because it is much faster.
     * If you download games from lichess in `.pgn` format, you can use `pgn2epd.py` to generate FENs.
     * If you download games from pychess in `.json` format, you can use `json2epd.py` to generate FENs.
-2. `puzzler.py` to identify puzzles within those positions and store them as EPD with annotations. This step can be re-run on the resulting EPD to re-evaluate the puzzles, e.g., at higher depth.
-3. `filter.py` to optionally narrow down the set of puzzles according to difficulty, type, etc.
-4. `pgn.py` to convert the EPD to a PGN.
-5. `kif.py` to convert the EPD to KIF format for shogi variants (lishogi compatibility).
+3. `puzzler.py` to identify puzzles within those positions and store them as EPD with annotations. This step can be re-run on the resulting EPD to re-evaluate the puzzles, e.g., at higher depth.
+4. `filter.py` to optionally narrow down the set of puzzles according to difficulty, type, etc.
+5. `pgn.py` to convert the EPD to a PGN.
+6. `kif.py` to convert the EPD to KIF format for shogi variants (lishogi compatibility).
 
 ## Export Formats
 
