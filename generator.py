@@ -43,7 +43,6 @@ def generate_fens(engine, variant, min_depth, max_depth, add_move, required_piec
 
 def generate_fens_worker(engine_path, ucioptions, variant, min_depth, max_depth, add_move, required_pieces, count, fen_list=None):
     engine = uci.Engine([engine_path], ucioptions)
-    sf.set_option("VariantPath", engine.options.get("VariantPath", ""))
     generator = generate_fens(engine, variant, min_depth, max_depth, add_move, required_pieces, fen_list)
     results = []
     for _ in range(count):
@@ -122,7 +121,8 @@ if __name__ == '__main__':
 
     ucioptions = dict(args.ucioptions)
     ucioptions.update({'Skill Level': args.skill_level})
-
+    sf.set_option("VariantPath", ucioptions.get("VariantPath", ""))
+    
     fen_list = None
     if args.fenfile:
         with open(args.fenfile) as f:
