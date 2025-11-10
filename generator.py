@@ -121,7 +121,8 @@ if __name__ == '__main__':
 
     ucioptions = dict(args.ucioptions)
     ucioptions.update({'Skill Level': args.skill_level})
-
+    sf.set_option("VariantPath", ucioptions.get("VariantPath", ""))
+    
     fen_list = None
     if args.fenfile:
         with open(args.fenfile) as f:
