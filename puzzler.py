@@ -215,6 +215,15 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
             continue
 
         if len(pv) > stm_index and (not mate_only or (len(types) > 0 and types[0] == 'mate')):
+            # Check for 'tsume' condition
+            is_tsume_puzzle = True
+            for i in range(stm_index, len(pv), 2): # Iterate through player's moves
+                moves_to_check = pv[:i+1]
+                san_moves = sf.get_san_moves(current_variant, fen, moves_to_check)
+                if not san_moves or '+' not in san_moves[-1]:
+                    is_tsume_puzzle = False
+                    break
+
             std = np.std([value(e, win_threshold) for e in evals])
             difficulty = 4 * volatilities[0] + 2 * std + accuracies[0]
             content = len(pv) - stm_index - 40 * volatilities2[0]
@@ -234,6 +243,8 @@ def generate_puzzles(instream, outstream, engine, variant, depth, win_threshold,
             annotations['accuracy2'] = '{:.3f}'.format(accuracies2[0])
             annotations['std'] = '{:.3f}'.format(std)
             annotations['ambiguity'] = '{:.3f}'.format(max(mate_distance_fractions))
+            if is_tsume_puzzle:
+                annotations['tsume'] = 'true'
             annotations['type'] = types[0]
             annotations['pv'] = ','.join(pv)
             ops = ';'.join('{} {}'.format(k, v) for k, v in annotations.items())
